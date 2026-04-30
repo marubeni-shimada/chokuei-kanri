@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -8,7 +7,7 @@
 <style>
 /* ======= 設定 ======= */
 /* ↓ ここにGASのURLを貼り付けてください */
-const API_URL = "https://script.google.com/macros/s/AKfycbwcLh9vUnvrIKo4c-qxN-NoUfuI70nK-eYiedzUqpS31emC01Tmeyd9u9nVAOJCgsLt/exec";
+/* const API_URL = "https://script.google.com/macros/s/XXXXXXXX/exec"; */
 
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,sans-serif;background:#f5f5f5;}
@@ -200,19 +199,28 @@ function hideOverlay() {
 function initials(n) { return n.replace(/\s/g, '').slice(0, 2); }
 function fmt(d) { if (!d) return ''; const p = d.split('-'); return p[1] + '/' + p[2]; }
 
-// ── API通信 ──
-async function apiGet(action) {
-  const res = await fetch(`${API_URL}?action=${action}`);
-  return res.json();
+// ── API通信（JSONP + no-cors POST）──
+function apiGet(action) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Date.now();
+    const script = document.createElement('script');
+    window[cbName] = (data) => {
+      resolve(data);
+      delete window[cbName];
+      document.head.removeChild(script);
+    };
+    script.onerror = () => reject(new Error('通信エラー'));
+    script.src = `${API_URL}?action=${action}&callback=${cbName}`;
+    document.head.appendChild(script);
+  });
 }
 async function apiPost(body) {
-  const res = await fetch(API_URL, {
+  await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     mode: 'no-cors'
   });
-  // no-corsではレスポンスが読めないので成功扱いにする
   return { success: true };
 }
 
