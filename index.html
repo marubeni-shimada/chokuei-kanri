@@ -7,7 +7,7 @@
 <style>
 /* ======= 設定 ======= */
 /* ↓ ここにGASのURLを貼り付けてください */
-/* const API_URL = "https://script.google.com/macros/s/AKfycbwApTDfD_mVGzcP0lr0V_7q_s73JQj2-uXzmtXq1avLzZ1477JNjed2AiA3U1tvYQff/exec"; */
+/* const API_URL = "https://script.google.com/macros/s/XXXXXXXX/exec"; */
 
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,sans-serif;background:#f5f5f5;}
@@ -53,6 +53,7 @@ body{font-family:-apple-system,sans-serif;background:#f5f5f5;}
 label{font-size:12px;color:#555;font-weight:500;display:block;margin-bottom:5px;}
 select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;}
 .kantoku-disp-reg{font-size:14px;color:#1565C0;background:#E8F4FF;border-radius:10px;padding:10px 12px;min-height:42px;display:flex;align-items:center;}
+.genba-input{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;display:none;}
 .row{display:flex;gap:10px;}
 .row .group{flex:1;}
 .btn{width:100%;padding:14px;background:#06C755;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-top:6px;}
@@ -116,8 +117,9 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
     <div class="group">
       <label>現場名</label>
       <select id="sel-genba" onchange="onRegGenbaChange()"><option value="">選択してください</option></select>
+      <input type="text" class="genba-input" id="inp-genba-free" placeholder="現場名を入力してください">
     </div>
-    <div class="group">
+    <div class="group" id="reg-kantoku-group">
       <label>監督名</label>
       <div class="kantoku-disp-reg" id="reg-kantoku-disp">現場を選ぶと自動表示されます</div>
       <input type="hidden" id="reg-kantoku">
@@ -146,8 +148,11 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
     <select id="edit-worker"></select>
     <label>現場名</label>
     <select id="edit-genba" onchange="onEditGenbaChange()"></select>
-    <label>監督名</label>
-    <div class="kantoku-disp" id="edit-kantoku-disp">—</div>
+    <input type="text" class="genba-input" id="edit-genba-free" placeholder="現場名を入力してください">
+    <div id="edit-kantoku-group">
+      <label>監督名</label>
+      <div class="kantoku-disp" id="edit-kantoku-disp">—</div>
+    </div>
     <input type="hidden" id="edit-kantoku">
     <div class="modal-row">
       <div class="mgroup"><label>開始日</label><input type="date" id="edit-start"></div>
@@ -294,10 +299,20 @@ async function confirmDel() {
 // ── 編集モーダル ──
 function onEditGenbaChange() {
   const val = document.getElementById('edit-genba').value;
-  const found = masters.genbas.find(g => g.name === val);
-  const k = found ? found.kantoku : '';
-  document.getElementById('edit-kantoku').value = k;
-  document.getElementById('edit-kantoku-disp').textContent = k || '—';
+  const freeInput = document.getElementById('edit-genba-free');
+  const kantokuGroup = document.getElementById('edit-kantoku-group');
+  if (val === '__free__') {
+    freeInput.style.display = 'block';
+    kantokuGroup.style.display = 'none';
+    document.getElementById('edit-kantoku').value = 'なし';
+  } else {
+    freeInput.style.display = 'none';
+    kantokuGroup.style.display = 'block';
+    const found = masters.genbas.find(g => g.name === val);
+    const k = found ? found.kantoku : '';
+    document.getElementById('edit-kantoku').value = k;
+    document.getElementById('edit-kantoku-disp').textContent = k || '—';
+  }
 }
 function openEdit(idx) {
   const d = allData.find(r => r.rowIndex === idx);
@@ -308,6 +323,18 @@ function openEdit(idx) {
   ws.innerHTML = ''; gs.innerHTML = '';
   masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w; if (w === d.name) o.selected = true; ws.appendChild(o); });
   masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; if (g.name === d.genba) o.selected = true; gs.appendChild(o); });
+  const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
+  // マスタにない現場名の場合は「直接入力する」を選択して入力欄に値をセット
+  const inMaster = masters.genbas.some(g => g.name === d.genba);
+  if (!inMaster) {
+    gs.value = '__free__';
+    document.getElementById('edit-genba-free').value = d.genba;
+    document.getElementById('edit-genba-free').style.display = 'block';
+    document.getElementById('edit-kantoku-group').style.display = 'none';
+  } else {
+    document.getElementById('edit-genba-free').style.display = 'none';
+    document.getElementById('edit-kantoku-group').style.display = 'block';
+  }
   document.getElementById('edit-start').value = d.start;
   document.getElementById('edit-end').value = d.end;
   onEditGenbaChange();
@@ -317,8 +344,9 @@ function closeModal() { document.getElementById('modal-bg').style.display = 'non
 async function saveEdit() {
   const idx = parseInt(document.getElementById('edit-row').value);
   const name = document.getElementById('edit-worker').value;
-  const genba = document.getElementById('edit-genba').value;
-  const kantoku = document.getElementById('edit-kantoku').value;
+  const selGenba = document.getElementById('edit-genba').value;
+  const genba = selGenba === '__free__' ? document.getElementById('edit-genba-free').value.trim() : selGenba;
+  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('edit-kantoku').value;
   const start = document.getElementById('edit-start').value;
   const end = document.getElementById('edit-end').value;
   if (!start || !end) { alert('日付を入力してください'); return; }
@@ -339,18 +367,31 @@ function fillMasterSelects() {
   gs.innerHTML = '<option value="">選択してください</option>';
   masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w; ws.appendChild(o); });
   masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; gs.appendChild(o); });
+  const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
 }
 function onRegGenbaChange() {
   const val = document.getElementById('sel-genba').value;
-  const found = masters.genbas.find(g => g.name === val);
-  const k = found ? found.kantoku : '';
-  document.getElementById('reg-kantoku').value = k;
-  document.getElementById('reg-kantoku-disp').textContent = k || '（未設定）';
+  const freeInput = document.getElementById('inp-genba-free');
+  const kantokuGroup = document.getElementById('reg-kantoku-group');
+  if (val === '__free__') {
+    freeInput.style.display = 'block';
+    kantokuGroup.style.display = 'none';
+    document.getElementById('reg-kantoku').value = '';
+    document.getElementById('reg-kantoku-disp').textContent = 'なし';
+  } else {
+    freeInput.style.display = 'none';
+    kantokuGroup.style.display = 'block';
+    const found = masters.genbas.find(g => g.name === val);
+    const k = found ? found.kantoku : '';
+    document.getElementById('reg-kantoku').value = k;
+    document.getElementById('reg-kantoku-disp').textContent = k || '（未設定）';
+  }
 }
 async function submitRegister() {
   const name = document.getElementById('sel-worker').value;
-  const genba = document.getElementById('sel-genba').value;
-  const kantoku = document.getElementById('reg-kantoku').value;
+  const selGenba = document.getElementById('sel-genba').value;
+  const genba = selGenba === '__free__' ? document.getElementById('inp-genba-free').value.trim() : selGenba;
+  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('reg-kantoku').value;
   const start = document.getElementById('inp-start').value;
   const end = document.getElementById('inp-end').value;
   if (!name || !genba || !start || !end) {
@@ -371,6 +412,9 @@ async function submitRegister() {
 function resetRegister() {
   document.getElementById('sel-worker').selectedIndex = 0;
   document.getElementById('sel-genba').selectedIndex = 0;
+  document.getElementById('inp-genba-free').value = '';
+  document.getElementById('inp-genba-free').style.display = 'none';
+  document.getElementById('reg-kantoku-group').style.display = 'block';
   document.getElementById('reg-kantoku').value = '';
   document.getElementById('reg-kantoku-disp').textContent = '現場を選ぶと自動表示されます';
   document.getElementById('inp-start').value = '';
