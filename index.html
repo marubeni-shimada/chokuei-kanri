@@ -5,29 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>直営現場管理</title>
 <style>
-/* ======= 設定 ======= */
-/* ↓ ここにGASのURLを貼り付けてください */
-/* const API_URL = "https://script.google.com/macros/s/XXXXXXXX/exec"; */
-
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,sans-serif;background:#D3D3D3;}
-.header{background:#A9A9A9;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;}
-.header h1{font-size:17px;font-weight:600;color:#FFFFFF;}
+body{font-family:-apple-system,sans-serif;background:#F5F5F5;color:#111;}
+.header{background:#fff;padding:14px 16px;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;justify-content:space-between;}
+.header h1{font-size:17px;font-weight:600;color:#111;}
 .reg-btn{background:#06C755;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;}
 .search-wrap{padding:12px 12px 0;}
 .search-wrap input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;}
-.count{font-size:13px;color:#aaa;padding:8px 14px 4px;}
+.count{font-size:13px;color:#888;padding:8px 14px 4px;}
 .list{padding:0 12px 20px;}
-.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;}
-.avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
+.card{background:#fff;border:1px solid #ECECEC;border-radius:14px;padding:13px 14px;margin-bottom:9px;display:flex;align-items:center;gap:12px;}
+.avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
 .info{flex:1;min-width:0;}
-.name{font-size:17px;font-weight:600;color:#111;}
-.genba-name{font-size:14px;color:#555;margin-top:4px;word-break:break-all;}
-.koki{font-size:13px;color:#444;margin-top:2px;font-weight:500;}
-.kantoku-tag{display:inline-block;font-size:13px;background:#E8F4FF;color:#1565C0;border-radius:6px;padding:3px 8px;margin-top:6px;font-weight:500;}
+.name{font-size:16px;font-weight:600;color:#111;}
+.genba-name{font-size:13px;color:#666;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sub-row{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.koki{font-size:12px;color:#999;}
+.kantoku-tag{display:inline-block;font-size:13px;font-weight:600;border-radius:8px;padding:3px 9px;}
+.kantoku-tag.has{background:#E6F1FB;color:#0C447C;}
+.kantoku-tag.none{background:#EEEEEE;color:#888;}
 .right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
-.del-btn{font-size:12px;color:#FF3B30;cursor:pointer;background:none;border:1px solid #ffcdd2;border-radius:6px;padding:4px 10px;}
-.edit-btn{font-size:12px;color:#888;cursor:pointer;background:none;border:1px solid #ddd;border-radius:6px;padding:4px 10px;}
+.del-btn{font-size:11px;color:#FF3B30;cursor:pointer;background:#fff;border:1px solid #ffcdd2;border-radius:6px;padding:4px 10px;}
+.edit-btn{font-size:11px;color:#888;cursor:pointer;background:#fff;border:1px solid #ddd;border-radius:6px;padding:4px 10px;}
 .empty{text-align:center;padding:60px 20px;color:#bbb;font-size:15px;}
 .loading{text-align:center;padding:40px;color:#bbb;font-size:14px;}
 /* モーダル */
@@ -42,7 +41,7 @@ body{font-family:-apple-system,sans-serif;background:#D3D3D3;}
 .modal-btns button{flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;border:none;}
 .cancel-btn{background:#f5f5f5;color:#555;}
 .save-btn{background:#06C755;color:#fff;}
-.kantoku-disp{font-size:13px;color:#1565C0;background:#E8F4FF;border-radius:8px;padding:8px 12px;margin-top:4px;min-height:36px;}
+.kantoku-disp{font-size:13px;color:#0C447C;background:#E6F1FB;border-radius:8px;padding:8px 12px;margin-top:4px;min-height:36px;}
 /* 登録フォーム */
 .page{display:none;}
 .page.active{display:block;}
@@ -53,7 +52,7 @@ body{font-family:-apple-system,sans-serif;background:#D3D3D3;}
 .group{margin-bottom:16px;}
 label{font-size:12px;color:#555;font-weight:500;display:block;margin-bottom:5px;}
 select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;}
-.kantoku-disp-reg{font-size:14px;color:#1565C0;background:#E8F4FF;border-radius:10px;padding:10px 12px;min-height:42px;display:flex;align-items:center;}
+.kantoku-disp-reg{font-size:14px;color:#0C447C;background:#E6F1FB;border-radius:10px;padding:10px 12px;min-height:42px;display:flex;align-items:center;}
 .genba-input{width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;display:none;}
 .row{display:flex;gap:10px;}
 .row .group{flex:1;}
@@ -75,7 +74,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
 .del-overlay.show{display:block;}
 .del-modal{display:none;position:fixed;bottom:0;left:0;width:100%;z-index:300;padding:16px;}
 .del-modal.show{display:block;}
-.del-inner{background:#fff;border-radius:16px;padding:20px;text-align:center;}
+.del-inner{background:#fff;border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.15);}
 .del-title{font-size:16px;font-weight:600;color:#111;margin-bottom:6px;}
 .del-sub{font-size:13px;color:#888;margin-bottom:16px;}
 .del-btns{display:flex;gap:8px;}
@@ -187,9 +186,9 @@ const API_URL = "https://script.google.com/macros/s/AKfycbwApTDfD_mVGzcP0lr0V_7q
 // ======================================
 
 const COLORS = [
-  {bg:'#E8F4FF',color:'#1565C0'},{bg:'#E8F5E9',color:'#2E7D32'},
-  {bg:'#FFF3E0',color:'#E65100'},{bg:'#F3E5F5',color:'#6A1B9A'},
-  {bg:'#E0F2F1',color:'#00695C'},{bg:'#FCE4EC',color:'#880E4F'}
+  {bg:'#E6F1FB',color:'#0C447C'},{bg:'#E1F5EE',color:'#0F6E56'},
+  {bg:'#FAECE7',color:'#993C1D'},{bg:'#EEEDFE',color:'#3C3489'},
+  {bg:'#E0F2F1',color:'#00695C'},{bg:'#FBEAF0',color:'#72243E'}
 ];
 
 let allData = [], masters = { workers: [], genbas: [] }, delTarget = null;
@@ -204,6 +203,12 @@ function hideOverlay() {
 }
 function initials(n) { return n.replace(/\s/g, '').slice(0, 2); }
 function fmt(d) { if (!d) return ''; const p = d.split('-'); return p[1] + '/' + p[2]; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// 監督が「あり」かどうか判定（空文字・「なし」は未設定扱い）
+function hasKantoku(k) {
+  const v = (k || '').trim();
+  return v !== '' && v !== 'なし';
+}
 
 // ── API通信 ──
 async function apiGet(action) {
@@ -259,14 +264,18 @@ function render() {
   if (!f.length) { document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>'; return; }
   document.getElementById('list').innerHTML = f.map((d, i) => {
     const c = COLORS[i % COLORS.length];
-    const kt = d.kantoku ? `<div class="kantoku-tag">監督: ${d.kantoku}</div>` : '';
+    const kt = hasKantoku(d.kantoku)
+      ? `<span class="kantoku-tag has">監督 ${esc(d.kantoku)}</span>`
+      : `<span class="kantoku-tag none">監督 なし</span>`;
     return `<div class="card">
-      <div class="avatar" style="background:${c.bg};color:${c.color}">${initials(d.name)}</div>
+      <div class="avatar" style="background:${c.bg};color:${c.color}">${esc(initials(d.name))}</div>
       <div class="info">
-        <div class="name">${d.name}</div>
-        <div class="genba-name">${d.genba}</div>
-        <div class="koki">${fmt(d.start)}〜${fmt(d.end)}</div>
-        ${kt}
+        <div class="name">${esc(d.name)}</div>
+        <div class="genba-name">${esc(d.genba)}</div>
+        <div class="sub-row">
+          <span class="koki">${fmt(d.start)}〜${fmt(d.end)}</span>
+          ${kt}
+        </div>
       </div>
       <div class="right">
         <button class="edit-btn" onclick="openEdit(${d.rowIndex})">編集</button>
