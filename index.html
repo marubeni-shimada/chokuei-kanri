@@ -8,9 +8,42 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .header{background:#111;padding:16px 16px 14px;display:flex;align-items:center;justify-content:space-between;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-title-block{display:flex;flex-direction:column;}
 .header h1{font-size:18px;font-weight:600;color:#fff;letter-spacing:-0.3px;}
 .header-sub{font-size:12px;color:#888;margin-top:2px;}
+.header-actions{display:flex;align-items:center;gap:8px;}
+.gear-btn{background:transparent;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;opacity:0.85;}
+.gear-btn:hover{opacity:1;}
 .reg-btn{background:#06C755;color:#fff;border:none;border-radius:20px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer;}
+/* マスタ管理ページ */
+.master-header{background:#111;padding:16px 16px 14px;display:flex;align-items:center;gap:12px;}
+.master-header .back{color:#fff;font-size:14px;cursor:pointer;opacity:0.9;}
+.master-header h1{color:#fff;font-size:18px;font-weight:600;}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #E0E0E0;}
+.tab{flex:1;padding:14px;font-size:14px;font-weight:600;color:#888;text-align:center;cursor:pointer;border-bottom:3px solid transparent;background:#fff;border-left:none;border-right:none;border-top:none;}
+.tab.active{color:#111;border-bottom-color:#06C755;}
+.master-list{padding:12px;background:#F0F0F0;min-height:300px;}
+.master-add-btn{width:100%;padding:12px;background:#fff;border:2px dashed #BBB;border-radius:12px;font-size:14px;font-weight:600;color:#666;cursor:pointer;margin-bottom:10px;}
+.master-item{background:#fff;border:1px solid #DDD;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+.master-item-info{flex:1;min-width:0;}
+.master-item-name{font-size:16px;font-weight:600;color:#111;}
+.master-item-sub{font-size:12px;color:#888;margin-top:2px;}
+.master-item-btns{display:flex;gap:6px;flex-shrink:0;}
+.master-edit{font-size:12px;color:#666;background:#F5F5F5;border:none;border-radius:7px;padding:6px 11px;font-weight:600;cursor:pointer;}
+.master-del{font-size:12px;color:#E03B3B;background:#FEEEEE;border:none;border-radius:7px;padding:6px 11px;font-weight:600;cursor:pointer;}
+.master-empty{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;}
+/* ログインモーダル */
+.login-modal-bg{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:200;overflow-y:auto;}
+.login-modal{background:#fff;border-radius:16px;margin:80px 24px 24px;padding:24px 20px;}
+.login-modal h2{font-size:18px;font-weight:700;color:#111;text-align:center;margin-bottom:6px;}
+.login-modal .sub{font-size:13px;color:#888;text-align:center;margin-bottom:18px;}
+.login-modal input{width:100%;padding:13px 14px;border:1px solid #ddd;border-radius:10px;font-size:16px;background:#fff;color:#111;}
+.login-modal .err{font-size:13px;color:#E03B3B;margin-top:8px;min-height:18px;}
+.login-modal .btns{display:flex;gap:8px;margin-top:14px;}
+.login-modal .btns button{flex:1;padding:13px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;}
+.login-cancel{background:#f5f5f5;color:#555;}
+.login-ok{background:#06C755;color:#fff;}
 .search-wrap{background:#fff;padding:10px 12px;border-left:0.5px solid #E0E0E0;border-right:0.5px solid #E0E0E0;}
 .search-wrap input{width:100%;padding:9px 12px;border:none;border-radius:10px;font-size:14px;background:#F5F5F5;color:#111;}
 .search-wrap input:focus{outline:none;}
@@ -46,6 +79,12 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .cancel-btn{background:#f5f5f5;color:#555;}
 .save-btn{background:#06C755;color:#fff;}
 .kantoku-disp{font-size:13px;color:#0C447C;background:#E6F1FB;border-radius:8px;padding:8px 12px;margin-top:4px;min-height:36px;}
+.date-group{margin-top:12px;}
+.koki-preview{background:#E8F5E9;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+.koki-preview-label{font-size:11px;font-weight:700;color:#2E7D32;letter-spacing:0.5px;}
+.koki-preview-days{font-size:14px;font-weight:700;color:#2E7D32;}
+.koki-preview.invalid{background:#FDECEC;}
+.koki-preview.invalid .koki-preview-label,.koki-preview.invalid .koki-preview-days{color:#C62828;}
 /* 登録フォーム */
 .page{display:none;}
 .page.active{display:block;}
@@ -97,11 +136,16 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
 <!-- ===== 一覧ページ ===== -->
 <div class="page active" id="page-list">
   <div class="header">
-    <div>
-      <h1>直営現場一覧</h1>
-      <div class="header-sub" id="header-sub"></div>
+    <div class="header-left">
+      <div class="header-title-block">
+        <h1>直営現場一覧</h1>
+        <div class="header-sub" id="header-sub"></div>
+      </div>
     </div>
-    <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+    <div class="header-actions">
+      <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
+      <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+    </div>
   </div>
   <div class="search-wrap">
     <input type="text" id="search" placeholder="名前・現場・監督で検索" oninput="render()">
@@ -131,9 +175,17 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
       <div class="kantoku-disp-reg" id="reg-kantoku-disp">現場を選ぶと自動表示されます</div>
       <input type="hidden" id="reg-kantoku">
     </div>
-    <div class="row">
-      <div class="group"><label>開始日</label><input type="date" id="inp-start"></div>
-      <div class="group"><label>終了予定日</label><input type="date" id="inp-end"></div>
+    <div class="group">
+      <label>開始日</label>
+      <input type="date" id="inp-start" onchange="updateRegKoki()">
+    </div>
+    <div class="group">
+      <label>終了予定日</label>
+      <input type="date" id="inp-end" onchange="updateRegKoki()">
+    </div>
+    <div class="koki-preview" id="reg-koki-preview" style="display:none;margin-bottom:10px;">
+      <span class="koki-preview-label">工期</span>
+      <span class="koki-preview-days" id="reg-koki-days">—</span>
     </div>
     <button class="btn" id="reg-btn-submit" onclick="submitRegister()">登録する</button>
   </div>
@@ -143,6 +195,63 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
     <div class="s-sub" id="reg-success-msg"></div>
     <button class="back-btn" onclick="resetRegister()">続けて登録する</button>
     <button class="back-btn" style="margin-top:8px;" onclick="showList()">一覧に戻る</button>
+  </div>
+</div>
+
+<!-- ===== マスタ管理ページ ===== -->
+<div class="page" id="page-master">
+  <div class="master-header">
+    <span class="back" onclick="showList()">← 一覧</span>
+    <h1>マスタ管理</h1>
+  </div>
+  <div class="tabs">
+    <button class="tab active" id="tab-genba" onclick="switchTab('genba')">現場</button>
+    <button class="tab" id="tab-worker" onclick="switchTab('worker')">作業員</button>
+  </div>
+  <div class="master-list" id="master-list"></div>
+</div>
+
+<!-- ===== ログインモーダル ===== -->
+<div class="login-modal-bg" id="login-modal-bg">
+  <div class="login-modal">
+    <h2>🔒 マスタ管理</h2>
+    <div class="sub">パスワードを入力してください</div>
+    <input type="password" id="login-password" placeholder="パスワード" autocomplete="off">
+    <div class="err" id="login-err"></div>
+    <div class="btns">
+      <button class="login-cancel" onclick="closeLoginModal()">キャンセル</button>
+      <button class="login-ok" onclick="submitLogin()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== マスタ編集モーダル（現場） ===== -->
+<div class="modal-bg" id="genba-modal-bg">
+  <div class="modal">
+    <h2 id="genba-modal-title">現場を追加</h2>
+    <input type="hidden" id="genba-edit-row">
+    <label>現場名</label>
+    <input type="text" id="genba-input-name" placeholder="例：渋谷区神南ビル新築工事">
+    <label>監督名</label>
+    <input type="text" id="genba-input-kantoku" placeholder="未設定の場合は空欄">
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeGenbaModal()">キャンセル</button>
+      <button class="save-btn" onclick="saveGenba()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== マスタ編集モーダル（作業員） ===== -->
+<div class="modal-bg" id="worker-modal-bg">
+  <div class="modal">
+    <h2 id="worker-modal-title">作業員を追加</h2>
+    <input type="hidden" id="worker-edit-row">
+    <label>作業員名</label>
+    <input type="text" id="worker-input-name" placeholder="例：田中 浩二">
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeWorkerModal()">キャンセル</button>
+      <button class="save-btn" onclick="saveWorker()">保存</button>
+    </div>
   </div>
 </div>
 
@@ -161,9 +270,17 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
       <div class="kantoku-disp" id="edit-kantoku-disp">—</div>
     </div>
     <input type="hidden" id="edit-kantoku">
-    <div class="modal-row">
-      <div class="mgroup"><label>開始日</label><input type="date" id="edit-start"></div>
-      <div class="mgroup"><label>終了予定日</label><input type="date" id="edit-end"></div>
+    <div class="date-group">
+      <label>開始日</label>
+      <input type="date" id="edit-start" onchange="updateEditKoki()">
+    </div>
+    <div class="date-group">
+      <label>終了予定日</label>
+      <input type="date" id="edit-end" onchange="updateEditKoki()">
+    </div>
+    <div class="koki-preview" id="edit-koki-preview" style="display:none;">
+      <span class="koki-preview-label">工期</span>
+      <span class="koki-preview-days" id="edit-koki-days">—</span>
     </div>
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeModal()">キャンセル</button>
@@ -199,6 +316,8 @@ const COLORS = [
 ];
 
 let allData = [], masters = { workers: [], genbas: [] }, delTarget = null;
+let masterAuthed = false;     // マスタ管理にログイン済みか
+let masterPassword = '';      // 認証で使うパスワード（セッション中のみ保持）
 
 // ── ユーティリティ ──
 function showOverlay(msg) {
@@ -215,6 +334,37 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&
 function hasKantoku(k) {
   const v = (k || '').trim();
   return v !== '' && v !== 'なし';
+}
+// 工期プレビュー更新（開始日・終了予定日から日数を計算）
+function renderKokiPreview(startVal, endVal, previewEl, daysEl) {
+  if (!startVal || !endVal) { previewEl.style.display = 'none'; return; }
+  const s = new Date(startVal), e = new Date(endVal);
+  if (isNaN(s) || isNaN(e)) { previewEl.style.display = 'none'; return; }
+  const diff = Math.round((e - s) / 86400000) + 1; // 開始日含めて何日間
+  previewEl.style.display = 'flex';
+  if (diff <= 0) {
+    previewEl.classList.add('invalid');
+    daysEl.textContent = '終了日が開始日より前です';
+  } else {
+    previewEl.classList.remove('invalid');
+    daysEl.textContent = diff + '日間';
+  }
+}
+function updateEditKoki() {
+  renderKokiPreview(
+    document.getElementById('edit-start').value,
+    document.getElementById('edit-end').value,
+    document.getElementById('edit-koki-preview'),
+    document.getElementById('edit-koki-days')
+  );
+}
+function updateRegKoki() {
+  renderKokiPreview(
+    document.getElementById('inp-start').value,
+    document.getElementById('inp-end').value,
+    document.getElementById('reg-koki-preview'),
+    document.getElementById('reg-koki-days')
+  );
 }
 
 // ── API通信 ──
@@ -233,17 +383,31 @@ async function apiPost(body) {
 }
 
 // ── ページ切り替え ──
-function showList() {
-  document.getElementById('page-list').classList.add('active');
+function hideAllPages() {
+  document.getElementById('page-list').classList.remove('active');
   document.getElementById('page-register').classList.remove('active');
+  document.getElementById('page-master').classList.remove('active');
+}
+function showList() {
+  hideAllPages();
+  document.getElementById('page-list').classList.add('active');
   loadList();
 }
 function showRegister() {
-  document.getElementById('page-list').classList.remove('active');
+  hideAllPages();
   document.getElementById('page-register').classList.add('active');
   document.getElementById('reg-form').style.display = 'block';
   document.getElementById('reg-success').style.display = 'none';
   fillMasterSelects();
+}
+function showMaster() {
+  if (!masterAuthed) {
+    openLoginModal();
+    return;
+  }
+  hideAllPages();
+  document.getElementById('page-master').classList.add('active');
+  loadMasters();
 }
 
 // ── 一覧 ──
@@ -251,7 +415,16 @@ async function loadList() {
   showOverlay('読み込み中...');
   try {
     const result = await apiGet('list');
-    masters = result.masters;
+    // workers / genbas を常に {rowIndex, name, ...} 形式に正規化
+    const m = result.masters || {};
+    masters = {
+      workers: Array.isArray(m.workersFull) ? m.workersFull
+              : Array.isArray(m.workers) ? m.workers.map(w => typeof w === 'string' ? { name: w } : w)
+              : [],
+      genbas: Array.isArray(m.genbasFull) ? m.genbasFull
+             : Array.isArray(m.genbas) ? m.genbas.map(g => typeof g === 'string' ? { name: g, kantoku: '' } : g)
+             : []
+    };
     allData = result.records;
     render();
   } catch(e) {
@@ -345,7 +518,7 @@ function openEdit(idx) {
   const ws = document.getElementById('edit-worker');
   const gs = document.getElementById('edit-genba');
   ws.innerHTML = ''; gs.innerHTML = '';
-  masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w; if (w === d.name) o.selected = true; ws.appendChild(o); });
+  masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w.name; if (w.name === d.name) o.selected = true; ws.appendChild(o); });
   masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; if (g.name === d.genba) o.selected = true; gs.appendChild(o); });
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
   // マスタにない現場名の場合は「直接入力する」を選択して入力欄に値をセット
@@ -362,6 +535,7 @@ function openEdit(idx) {
   document.getElementById('edit-start').value = d.start;
   document.getElementById('edit-end').value = d.end;
   onEditGenbaChange();
+  updateEditKoki();
   document.getElementById('modal-bg').style.display = 'block';
 }
 function closeModal() { document.getElementById('modal-bg').style.display = 'none'; }
@@ -389,7 +563,7 @@ function fillMasterSelects() {
   const gs = document.getElementById('sel-genba');
   ws.innerHTML = '<option value="">選択してください</option>';
   gs.innerHTML = '<option value="">選択してください</option>';
-  masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w; ws.appendChild(o); });
+  masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w.name; ws.appendChild(o); });
   masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; gs.appendChild(o); });
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
 }
@@ -443,9 +617,205 @@ function resetRegister() {
   document.getElementById('reg-kantoku-disp').textContent = '現場を選ぶと自動表示されます';
   document.getElementById('inp-start').value = '';
   document.getElementById('inp-end').value = '';
+  const prev = document.getElementById('reg-koki-preview');
+  if (prev) prev.style.display = 'none';
   document.getElementById('reg-btn-submit').disabled = false;
   document.getElementById('reg-form').style.display = 'block';
   document.getElementById('reg-success').style.display = 'none';
+}
+
+// ── マスタ管理 ──
+let currentTab = 'genba';
+
+// ── ログイン ──
+function openLoginModal() {
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('login-modal-bg').style.display = 'block';
+  setTimeout(() => document.getElementById('login-password').focus(), 100);
+}
+function closeLoginModal() {
+  document.getElementById('login-modal-bg').style.display = 'none';
+}
+async function submitLogin() {
+  const pw = document.getElementById('login-password').value;
+  if (!pw) {
+    document.getElementById('login-err').textContent = 'パスワードを入力してください';
+    return;
+  }
+  document.getElementById('login-err').textContent = '';
+  showOverlay('認証中...');
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'login', password: pw }),
+      redirect: 'follow'
+    });
+    const result = await res.json();
+    hideOverlay();
+    if (result && result.success) {
+      masterAuthed = true;
+      masterPassword = pw;
+      closeLoginModal();
+      hideAllPages();
+      document.getElementById('page-master').classList.add('active');
+      loadMasters();
+    } else {
+      document.getElementById('login-err').textContent = (result && result.error) || 'パスワードが違います';
+    }
+  } catch (e) {
+    hideOverlay();
+    document.getElementById('login-err').textContent = '通信エラーが発生しました';
+  }
+}
+// Enterキーでログイン
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-modal-bg').style.display === 'block') {
+    submitLogin();
+  }
+});
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-genba').classList.toggle('active', tab === 'genba');
+  document.getElementById('tab-worker').classList.toggle('active', tab === 'worker');
+  renderMasterList();
+}
+
+async function loadMasters() {
+  showOverlay('読み込み中...');
+  try {
+    const m = await apiGet('masters');
+    // 新形式（rowIndex付き）が返ってくる前提だが、互換のため変換
+    masters = {
+      workers: Array.isArray(m.workers) ? m.workers : [],
+      genbas: Array.isArray(m.genbas) ? m.genbas : []
+    };
+    renderMasterList();
+  } catch (e) {
+    document.getElementById('master-list').innerHTML = '<div class="master-empty">読み込みに失敗しました</div>';
+  }
+  hideOverlay();
+}
+
+function renderMasterList() {
+  const container = document.getElementById('master-list');
+  if (currentTab === 'genba') {
+    const items = masters.genbas || [];
+    let html = `<button class="master-add-btn" onclick="openGenbaModal()">＋ 現場を追加</button>`;
+    if (!items.length) {
+      html += '<div class="master-empty">現場が登録されていません</div>';
+    } else {
+      html += items.map(g => `
+        <div class="master-item">
+          <div class="master-item-info">
+            <div class="master-item-name">${esc(g.name)}</div>
+            <div class="master-item-sub">監督: ${esc(g.kantoku) || 'なし'}</div>
+          </div>
+          <div class="master-item-btns">
+            <button class="master-edit" onclick="openGenbaModal(${g.rowIndex})">編集</button>
+            <button class="master-del" onclick="deleteGenba(${g.rowIndex}, '${esc(g.name).replace(/'/g, "\\'")}')">削除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    container.innerHTML = html;
+  } else {
+    const items = masters.workers || [];
+    let html = `<button class="master-add-btn" onclick="openWorkerModal()">＋ 作業員を追加</button>`;
+    if (!items.length) {
+      html += '<div class="master-empty">作業員が登録されていません</div>';
+    } else {
+      html += items.map(w => `
+        <div class="master-item">
+          <div class="master-item-info">
+            <div class="master-item-name">${esc(w.name)}</div>
+          </div>
+          <div class="master-item-btns">
+            <button class="master-edit" onclick="openWorkerModal(${w.rowIndex})">編集</button>
+            <button class="master-del" onclick="deleteWorker(${w.rowIndex}, '${esc(w.name).replace(/'/g, "\\'")}')">削除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    container.innerHTML = html;
+  }
+}
+
+// 現場マスタ：追加・編集モーダル
+function openGenbaModal(rowIndex) {
+  document.getElementById('genba-modal-title').textContent = rowIndex ? '現場を編集' : '現場を追加';
+  document.getElementById('genba-edit-row').value = rowIndex || '';
+  if (rowIndex) {
+    const g = (masters.genbas || []).find(x => x.rowIndex === rowIndex);
+    if (g) {
+      document.getElementById('genba-input-name').value = g.name || '';
+      document.getElementById('genba-input-kantoku').value = g.kantoku || '';
+    }
+  } else {
+    document.getElementById('genba-input-name').value = '';
+    document.getElementById('genba-input-kantoku').value = '';
+  }
+  document.getElementById('genba-modal-bg').style.display = 'block';
+}
+function closeGenbaModal() {
+  document.getElementById('genba-modal-bg').style.display = 'none';
+}
+async function saveGenba() {
+  const rowIndex = document.getElementById('genba-edit-row').value;
+  const name = document.getElementById('genba-input-name').value.trim();
+  const kantoku = document.getElementById('genba-input-kantoku').value.trim();
+  if (!name) { alert('現場名を入力してください'); return; }
+  closeGenbaModal();
+  showOverlay('保存中...');
+  if (rowIndex) {
+    await apiPost({ action: 'updateGenba', rowIndex: parseInt(rowIndex), name, kantoku, password: masterPassword });
+  } else {
+    await apiPost({ action: 'addGenba', name, kantoku, password: masterPassword });
+  }
+  await loadMasters();
+}
+async function deleteGenba(rowIndex, name) {
+  if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
+  showOverlay('削除中...');
+  await apiPost({ action: 'deleteGenba', rowIndex, password: masterPassword });
+  await loadMasters();
+}
+
+// 作業員マスタ：追加・編集モーダル
+function openWorkerModal(rowIndex) {
+  document.getElementById('worker-modal-title').textContent = rowIndex ? '作業員を編集' : '作業員を追加';
+  document.getElementById('worker-edit-row').value = rowIndex || '';
+  if (rowIndex) {
+    const w = (masters.workers || []).find(x => x.rowIndex === rowIndex);
+    if (w) document.getElementById('worker-input-name').value = w.name || '';
+  } else {
+    document.getElementById('worker-input-name').value = '';
+  }
+  document.getElementById('worker-modal-bg').style.display = 'block';
+}
+function closeWorkerModal() {
+  document.getElementById('worker-modal-bg').style.display = 'none';
+}
+async function saveWorker() {
+  const rowIndex = document.getElementById('worker-edit-row').value;
+  const name = document.getElementById('worker-input-name').value.trim();
+  if (!name) { alert('作業員名を入力してください'); return; }
+  closeWorkerModal();
+  showOverlay('保存中...');
+  if (rowIndex) {
+    await apiPost({ action: 'updateWorker', rowIndex: parseInt(rowIndex), name, password: masterPassword });
+  } else {
+    await apiPost({ action: 'addWorker', name, password: masterPassword });
+  }
+  await loadMasters();
+}
+async function deleteWorker(rowIndex, name) {
+  if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
+  showOverlay('削除中...');
+  await apiPost({ action: 'deleteWorker', rowIndex, password: masterPassword });
+  await loadMasters();
 }
 
 // ── 初期化 ──
