@@ -206,6 +206,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
   </div>
   <div class="tabs">
     <button class="tab active" id="tab-genba" onclick="switchTab('genba')">現場</button>
+    <button class="tab" id="tab-kantoku" onclick="switchTab('kantoku')">監督</button>
     <button class="tab" id="tab-worker" onclick="switchTab('worker')">作業員</button>
   </div>
   <div class="master-list" id="master-list"></div>
@@ -233,10 +234,25 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
     <label>現場名</label>
     <input type="text" id="genba-input-name" placeholder="例：渋谷区神南ビル新築工事">
     <label>監督名</label>
-    <input type="text" id="genba-input-kantoku" placeholder="未設定の場合は空欄">
+    <select id="genba-input-kantoku-select" onchange="onGenbaKantokuChange()"></select>
+    <input type="text" id="genba-input-kantoku-free" placeholder="監督名を入力" style="display:none;margin-top:8px;">
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeGenbaModal()">キャンセル</button>
       <button class="save-btn" onclick="saveGenba()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== マスタ編集モーダル（監督） ===== -->
+<div class="modal-bg" id="kantoku-modal-bg">
+  <div class="modal">
+    <h2 id="kantoku-modal-title">監督を追加</h2>
+    <input type="hidden" id="kantoku-edit-row">
+    <label>監督名</label>
+    <input type="text" id="kantoku-input-name" placeholder="例：佐藤 健一">
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeKantokuModal()">キャンセル</button>
+      <button class="save-btn" onclick="saveKantoku()">保存</button>
     </div>
   </div>
 </div>
@@ -315,7 +331,7 @@ const COLORS = [
   {bg:'#E0F2F1',color:'#00695C'},{bg:'#FBEAF0',color:'#72243E'}
 ];
 
-let allData = [], masters = { workers: [], genbas: [] }, delTarget = null;
+let allData = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
 let masterAuthed = false;     // マスタ管理にログイン済みか
 let masterPassword = '';      // 認証で使うパスワード（セッション中のみ保持）
 
@@ -423,7 +439,8 @@ async function loadList() {
               : [],
       genbas: Array.isArray(m.genbasFull) ? m.genbasFull
              : Array.isArray(m.genbas) ? m.genbas.map(g => typeof g === 'string' ? { name: g, kantoku: '' } : g)
-             : []
+             : [],
+      kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
     };
     allData = result.records;
     render();
@@ -679,6 +696,7 @@ document.addEventListener('keydown', e => {
 function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-genba').classList.toggle('active', tab === 'genba');
+  document.getElementById('tab-kantoku').classList.toggle('active', tab === 'kantoku');
   document.getElementById('tab-worker').classList.toggle('active', tab === 'worker');
   renderMasterList();
 }
@@ -687,10 +705,10 @@ async function loadMasters() {
   showOverlay('読み込み中...');
   try {
     const m = await apiGet('masters');
-    // 新形式（rowIndex付き）が返ってくる前提だが、互換のため変換
     masters = {
       workers: Array.isArray(m.workers) ? m.workers : [],
-      genbas: Array.isArray(m.genbas) ? m.genbas : []
+      genbas: Array.isArray(m.genbas) ? m.genbas : [],
+      kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
     };
     renderMasterList();
   } catch (e) {
@@ -721,6 +739,25 @@ function renderMasterList() {
       `).join('');
     }
     container.innerHTML = html;
+  } else if (currentTab === 'kantoku') {
+    const items = masters.kantokus || [];
+    let html = `<button class="master-add-btn" onclick="openKantokuModal()">＋ 監督を追加</button>`;
+    if (!items.length) {
+      html += '<div class="master-empty">監督が登録されていません</div>';
+    } else {
+      html += items.map(k => `
+        <div class="master-item">
+          <div class="master-item-info">
+            <div class="master-item-name">${esc(k.name)}</div>
+          </div>
+          <div class="master-item-btns">
+            <button class="master-edit" onclick="openKantokuModal(${k.rowIndex})">編集</button>
+            <button class="master-del" onclick="deleteKantoku(${k.rowIndex}, '${esc(k.name).replace(/'/g, "\\'")}')">削除</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    container.innerHTML = html;
   } else {
     const items = masters.workers || [];
     let html = `<button class="master-add-btn" onclick="openWorkerModal()">＋ 作業員を追加</button>`;
@@ -744,18 +781,72 @@ function renderMasterList() {
 }
 
 // 現場マスタ：追加・編集モーダル
+function getUniqueKantokuList() {
+  // 監督マスタから取得（無ければ現場リストの監督名から重複排除）
+  if (masters.kantokus && masters.kantokus.length) {
+    return masters.kantokus.map(k => k.name).filter(Boolean).sort();
+  }
+  const set = new Set();
+  (masters.genbas || []).forEach(g => {
+    const k = (g.kantoku || '').trim();
+    if (k && k !== 'なし') set.add(k);
+  });
+  return Array.from(set).sort();
+}
+function onGenbaKantokuChange() {
+  const val = document.getElementById('genba-input-kantoku-select').value;
+  const free = document.getElementById('genba-input-kantoku-free');
+  if (val === '__new__') {
+    free.style.display = 'block';
+    free.value = '';
+    setTimeout(() => free.focus(), 50);
+  } else {
+    free.style.display = 'none';
+    free.value = '';
+  }
+}
 function openGenbaModal(rowIndex) {
   document.getElementById('genba-modal-title').textContent = rowIndex ? '現場を編集' : '現場を追加';
   document.getElementById('genba-edit-row').value = rowIndex || '';
+
+  // 監督プルダウンを組み立て
+  const sel = document.getElementById('genba-input-kantoku-select');
+  const free = document.getElementById('genba-input-kantoku-free');
+  free.style.display = 'none';
+  free.value = '';
+  sel.innerHTML = '';
+  const optNone = document.createElement('option');
+  optNone.value = ''; optNone.textContent = '（なし）';
+  sel.appendChild(optNone);
+  getUniqueKantokuList().forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k;
+    sel.appendChild(o);
+  });
+  const optNew = document.createElement('option');
+  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
+  sel.appendChild(optNew);
+
   if (rowIndex) {
     const g = (masters.genbas || []).find(x => x.rowIndex === rowIndex);
     if (g) {
       document.getElementById('genba-input-name').value = g.name || '';
-      document.getElementById('genba-input-kantoku').value = g.kantoku || '';
+      const current = (g.kantoku || '').trim();
+      // 既存の選択肢にあればそれを選択、なければ新規入力扱い
+      const found = Array.from(sel.options).some(o => o.value === current);
+      if (current && found) {
+        sel.value = current;
+      } else if (current) {
+        sel.value = '__new__';
+        free.style.display = 'block';
+        free.value = current;
+      } else {
+        sel.value = '';
+      }
     }
   } else {
     document.getElementById('genba-input-name').value = '';
-    document.getElementById('genba-input-kantoku').value = '';
+    sel.value = '';
   }
   document.getElementById('genba-modal-bg').style.display = 'block';
 }
@@ -765,7 +856,10 @@ function closeGenbaModal() {
 async function saveGenba() {
   const rowIndex = document.getElementById('genba-edit-row').value;
   const name = document.getElementById('genba-input-name').value.trim();
-  const kantoku = document.getElementById('genba-input-kantoku').value.trim();
+  const selVal = document.getElementById('genba-input-kantoku-select').value;
+  const kantoku = selVal === '__new__'
+    ? document.getElementById('genba-input-kantoku-free').value.trim()
+    : selVal;
   if (!name) { alert('現場名を入力してください'); return; }
   closeGenbaModal();
   showOverlay('保存中...');
@@ -780,6 +874,41 @@ async function deleteGenba(rowIndex, name) {
   if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
   showOverlay('削除中...');
   await apiPost({ action: 'deleteGenba', rowIndex, password: masterPassword });
+  await loadMasters();
+}
+
+// 監督マスタ：追加・編集モーダル
+function openKantokuModal(rowIndex) {
+  document.getElementById('kantoku-modal-title').textContent = rowIndex ? '監督を編集' : '監督を追加';
+  document.getElementById('kantoku-edit-row').value = rowIndex || '';
+  if (rowIndex) {
+    const k = (masters.kantokus || []).find(x => x.rowIndex === rowIndex);
+    if (k) document.getElementById('kantoku-input-name').value = k.name || '';
+  } else {
+    document.getElementById('kantoku-input-name').value = '';
+  }
+  document.getElementById('kantoku-modal-bg').style.display = 'block';
+}
+function closeKantokuModal() {
+  document.getElementById('kantoku-modal-bg').style.display = 'none';
+}
+async function saveKantoku() {
+  const rowIndex = document.getElementById('kantoku-edit-row').value;
+  const name = document.getElementById('kantoku-input-name').value.trim();
+  if (!name) { alert('監督名を入力してください'); return; }
+  closeKantokuModal();
+  showOverlay('保存中...');
+  if (rowIndex) {
+    await apiPost({ action: 'updateKantoku', rowIndex: parseInt(rowIndex), name, password: masterPassword });
+  } else {
+    await apiPost({ action: 'addKantoku', name, password: masterPassword });
+  }
+  await loadMasters();
+}
+async function deleteKantoku(rowIndex, name) {
+  if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
+  showOverlay('削除中...');
+  await apiPost({ action: 'deleteKantoku', rowIndex, password: masterPassword });
   await loadMasters();
 }
 
