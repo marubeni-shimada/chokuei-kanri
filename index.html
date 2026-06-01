@@ -66,6 +66,7 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .slot-badge.next{color:#888;background:#EEE;}
 .slot-badge.upcoming{color:#866216;background:#F4E2A8;}
 .slot-edit{font-size:11px;color:#666;background:#fff;border:1px solid #DDD;border-radius:6px;padding:3px 9px;font-weight:600;cursor:pointer;}
+.add-genba-btn{font-size:12px;color:#06A047;background:#E1F5EE;border:none;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;flex-shrink:0;}
 .slot-genba{font-size:14px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .slot-meta{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
 .slot-koki{font-size:13px;color:#555;}
@@ -192,7 +193,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
       <input type="date" id="inp-end" onchange="updateRegKoki()">
     </div>
     <div class="koki-preview" id="reg-koki-preview" style="display:none;margin-bottom:10px;">
-      <span class="koki-preview-label">工期</span>
+      <span class="koki-preview-label">期間</span>
       <span class="koki-preview-days" id="reg-koki-days">—</span>
     </div>
     <button class="btn" id="reg-btn-submit" onclick="submitRegister()">登録する</button>
@@ -265,6 +266,39 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
   </div>
 </div>
 
+<!-- ===== 作業員に現場を追加するモーダル ===== -->
+<div class="modal-bg" id="add-genba-modal-bg">
+  <div class="modal">
+    <div style="font-size:12px;color:#888;margin-bottom:4px;" id="add-genba-modal-subtitle"></div>
+    <h2 style="margin-bottom:14px;">現場を追加</h2>
+    <input type="hidden" id="add-genba-target-name">
+    <label>現場名</label>
+    <select id="add-genba-input-select" onchange="onAddGenbaChange()"><option value="">選択してください</option></select>
+    <input type="text" class="genba-input" id="add-genba-input-free" placeholder="現場名を入力してください">
+    <div id="add-genba-kantoku-group">
+      <label>監督名</label>
+      <div class="kantoku-disp" id="add-genba-kantoku-disp">現場を選ぶと自動表示されます</div>
+      <input type="hidden" id="add-genba-kantoku">
+    </div>
+    <div class="date-group">
+      <label>開始日</label>
+      <input type="date" id="add-genba-start" onchange="updateAddGenbaKoki()">
+    </div>
+    <div class="date-group">
+      <label>終了予定日</label>
+      <input type="date" id="add-genba-end" onchange="updateAddGenbaKoki()">
+    </div>
+    <div class="koki-preview" id="add-genba-koki-preview" style="display:none;">
+      <span class="koki-preview-label">期間</span>
+      <span class="koki-preview-days" id="add-genba-koki-days">—</span>
+    </div>
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeAddGenbaModal()">キャンセル</button>
+      <button class="save-btn" onclick="saveAddGenba()">追加する</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== 編集モーダル ===== -->
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
@@ -292,7 +326,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
       <input type="date" id="edit-end" onchange="updateEditKoki()">
     </div>
     <div class="koki-preview" id="edit-koki-preview" style="display:none;">
-      <span class="koki-preview-label">工期</span>
+      <span class="koki-preview-label">期間</span>
       <span class="koki-preview-days" id="edit-koki-days">—</span>
     </div>
     <div class="modal-btns">
@@ -551,6 +585,7 @@ function render() {
           <div class="avatar" style="background:${c.bg};color:${c.color}">${esc(initials(g.name))}</div>
           <div class="name">${esc(g.name)}</div>
         </div>
+        <button class="add-genba-btn" onclick="openAddGenbaModal('${esc(g.name).replace(/'/g, "\\'")}')">＋ 現場を追加</button>
       </div>
       ${slotsHtml}
     </div>`;
@@ -668,6 +703,82 @@ async function saveEdit() {
   if (d) { d.name = name; d.genba = genba; d.kantoku = kantoku; d.start = start; d.end = end; }
   hideOverlay();
   render();
+}
+
+// ── 作業員カードからの「現場を追加」モーダル ──
+function updateAddGenbaKoki() {
+  renderKokiPreview(
+    document.getElementById('add-genba-start').value,
+    document.getElementById('add-genba-end').value,
+    document.getElementById('add-genba-koki-preview'),
+    document.getElementById('add-genba-koki-days')
+  );
+}
+function openAddGenbaModal(workerName) {
+  document.getElementById('add-genba-target-name').value = workerName;
+  document.getElementById('add-genba-modal-subtitle').textContent = workerName + ' さんに現場を追加';
+  // 現場プルダウンを組み立て
+  const gs = document.getElementById('add-genba-input-select');
+  gs.innerHTML = '<option value="">選択してください</option>';
+  masters.genbas.forEach(g => {
+    const o = document.createElement('option');
+    o.value = g.name; o.textContent = g.name;
+    gs.appendChild(o);
+  });
+  const free = document.createElement('option');
+  free.value = '__free__'; free.textContent = '✏️ 直接入力する';
+  gs.appendChild(free);
+  // フォームをリセット
+  document.getElementById('add-genba-input-free').value = '';
+  document.getElementById('add-genba-input-free').style.display = 'none';
+  document.getElementById('add-genba-kantoku-group').style.display = 'block';
+  document.getElementById('add-genba-kantoku').value = '';
+  document.getElementById('add-genba-kantoku-disp').textContent = '現場を選ぶと自動表示されます';
+  document.getElementById('add-genba-start').value = '';
+  document.getElementById('add-genba-end').value = '';
+  document.getElementById('add-genba-koki-preview').style.display = 'none';
+  document.getElementById('add-genba-modal-bg').style.display = 'block';
+}
+function closeAddGenbaModal() {
+  document.getElementById('add-genba-modal-bg').style.display = 'none';
+}
+function onAddGenbaChange() {
+  const val = document.getElementById('add-genba-input-select').value;
+  const freeInput = document.getElementById('add-genba-input-free');
+  const kantokuGroup = document.getElementById('add-genba-kantoku-group');
+  if (val === '__free__') {
+    freeInput.style.display = 'block';
+    kantokuGroup.style.display = 'none';
+    document.getElementById('add-genba-kantoku').value = '';
+    document.getElementById('add-genba-kantoku-disp').textContent = 'なし';
+  } else {
+    freeInput.style.display = 'none';
+    kantokuGroup.style.display = 'block';
+    const found = masters.genbas.find(g => g.name === val);
+    const k = found ? found.kantoku : '';
+    document.getElementById('add-genba-kantoku').value = k;
+    document.getElementById('add-genba-kantoku-disp').textContent = k || '（未設定）';
+  }
+}
+async function saveAddGenba() {
+  const name = document.getElementById('add-genba-target-name').value;
+  const selGenba = document.getElementById('add-genba-input-select').value;
+  const genba = selGenba === '__free__' ? document.getElementById('add-genba-input-free').value.trim() : selGenba;
+  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('add-genba-kantoku').value;
+  const start = document.getElementById('add-genba-start').value;
+  const end = document.getElementById('add-genba-end').value;
+  if (!genba || !start || !end) {
+    const m = [];
+    if (!genba) m.push('現場名');
+    if (!start) m.push('開始日');
+    if (!end) m.push('終了予定日');
+    alert(m.join('・') + 'を選択してください'); return;
+  }
+  closeAddGenbaModal();
+  showOverlay('追加中...');
+  await apiPost({ action: 'add', name, genba, kantoku, start, end });
+  hideOverlay();
+  await loadList();
 }
 
 // ── 登録フォーム ──
