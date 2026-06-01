@@ -54,16 +54,23 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .card-name-row{display:flex;align-items:center;gap:10px;}
 .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0;}
 .name{font-size:18px;font-weight:600;color:#111;letter-spacing:-0.3px;}
-.card-btns{display:flex;gap:6px;flex-shrink:0;}
-.card-body{background:#F8F8F8;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;}
-.genba-name{font-size:14px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.koki-row{display:flex;align-items:center;justify-content:space-between;}
-.koki{font-size:14px;color:#555;}
 .kantoku-tag{display:inline-block;font-size:12px;font-weight:600;border-radius:8px;padding:3px 10px;}
 .kantoku-tag.has{background:#E6F1FB;color:#0C447C;}
 .kantoku-tag.none{background:#EEEEEE;color:#888;}
-.del-btn{font-size:12px;color:#FF3B30;cursor:pointer;background:#FFF0EF;border:none;border-radius:6px;padding:5px 10px;}
-.edit-btn{font-size:12px;color:#666;cursor:pointer;background:#F5F5F5;border:none;border-radius:6px;padding:5px 10px;}
+.slot-box{border-radius:10px;padding:10px 12px;margin-top:6px;background:#F8F8F8;}
+.slot-box.next{background:#FAFAFA;border:1px dashed #DDD;}
+.slot-box.upcoming{background:#FFF8E8;border:1px dashed #D4B26A;}
+.slot-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.slot-badge{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;letter-spacing:0.5px;}
+.slot-badge.now{color:#06A047;background:#E1F5EE;}
+.slot-badge.next{color:#888;background:#EEE;}
+.slot-badge.upcoming{color:#866216;background:#F4E2A8;}
+.slot-edit{font-size:11px;color:#666;background:#fff;border:1px solid #DDD;border-radius:6px;padding:3px 9px;font-weight:600;cursor:pointer;}
+.slot-genba{font-size:14px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.slot-meta{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+.slot-koki{font-size:13px;color:#555;}
+.slot-box.next .slot-genba{font-size:13px;color:#555;}
+.slot-box.next .slot-koki{font-size:12px;color:#999;}
 .empty{text-align:center;padding:60px 20px;color:#bbb;font-size:15px;}
 .loading{text-align:center;padding:40px;color:#bbb;font-size:14px;}
 /* モーダル */
@@ -85,6 +92,7 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .koki-preview-days{font-size:14px;font-weight:700;color:#2E7D32;}
 .koki-preview.invalid{background:#FDECEC;}
 .koki-preview.invalid .koki-preview-label,.koki-preview.invalid .koki-preview-days{color:#C62828;}
+.del-from-modal-btn{width:100%;margin-top:10px;padding:10px;background:#fff;color:#E03B3B;border:1px solid #E03B3B;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
 /* 登録フォーム */
 .page{display:none;}
 .page.active{display:block;}
@@ -243,20 +251,6 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
   </div>
 </div>
 
-<!-- ===== マスタ編集モーダル（監督） ===== -->
-<div class="modal-bg" id="kantoku-modal-bg">
-  <div class="modal">
-    <h2 id="kantoku-modal-title">監督を追加</h2>
-    <input type="hidden" id="kantoku-edit-row">
-    <label>監督名</label>
-    <input type="text" id="kantoku-input-name" placeholder="例：佐藤 健一">
-    <div class="modal-btns">
-      <button class="cancel-btn" onclick="closeKantokuModal()">キャンセル</button>
-      <button class="save-btn" onclick="saveKantoku()">保存</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===== マスタ編集モーダル（作業員） ===== -->
 <div class="modal-bg" id="worker-modal-bg">
   <div class="modal">
@@ -274,6 +268,9 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
 <!-- ===== 編集モーダル ===== -->
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
+    <div id="edit-slot-badge-wrap" style="margin-bottom:6px;display:none;">
+      <span class="slot-badge" id="edit-slot-badge">今</span>
+    </div>
     <h2>現場を編集</h2>
     <input type="hidden" id="edit-row">
     <label>作業員名</label>
@@ -302,6 +299,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
       <button class="cancel-btn" onclick="closeModal()">キャンセル</button>
       <button class="save-btn" onclick="saveEdit()">保存</button>
     </div>
+    <button class="del-from-modal-btn" onclick="delFromEdit()">🗑 この現場を削除</button>
   </div>
 </div>
 
@@ -332,8 +330,8 @@ const COLORS = [
 ];
 
 let allData = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
-let masterAuthed = false;     // マスタ管理にログイン済みか
-let masterPassword = '';      // 認証で使うパスワード（セッション中のみ保持）
+let masterAuthed = false;
+let masterPassword = '';
 
 // ── ユーティリティ ──
 function showOverlay(msg) {
@@ -346,17 +344,23 @@ function hideOverlay() {
 function initials(n) { return n.replace(/\s/g, '').slice(0, 2); }
 function fmt(d) { if (!d) return ''; const p = d.split('-'); return p[1] + '/' + p[2]; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-// 監督が「あり」かどうか判定（空文字・「なし」は未設定扱い）
 function hasKantoku(k) {
   const v = (k || '').trim();
   return v !== '' && v !== 'なし';
 }
-// 工期プレビュー更新（開始日・終了予定日から日数を計算）
+// 今日の日付（YYYY-MM-DD）
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
 function renderKokiPreview(startVal, endVal, previewEl, daysEl) {
   if (!startVal || !endVal) { previewEl.style.display = 'none'; return; }
   const s = new Date(startVal), e = new Date(endVal);
   if (isNaN(s) || isNaN(e)) { previewEl.style.display = 'none'; return; }
-  const diff = Math.round((e - s) / 86400000) + 1; // 開始日含めて何日間
+  const diff = Math.round((e - s) / 86400000) + 1;
   previewEl.style.display = 'flex';
   if (diff <= 0) {
     previewEl.classList.add('invalid');
@@ -431,7 +435,6 @@ async function loadList() {
   showOverlay('読み込み中...');
   try {
     const result = await apiGet('list');
-    // workers / genbas を常に {rowIndex, name, ...} 形式に正規化
     const m = result.masters || {};
     masters = {
       workers: Array.isArray(m.workersFull) ? m.workersFull
@@ -442,7 +445,7 @@ async function loadList() {
              : [],
       kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
     };
-    allData = result.records;
+    allData = result.records || [];
     render();
   } catch(e) {
     document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
@@ -450,40 +453,106 @@ async function loadList() {
   hideOverlay();
 }
 
+// allData から作業員ごとに「今」「次」「開始前」を抽出してグループ化
+function buildWorkerGroups() {
+  const today = todayStr();
+  // 終了予定日が今日以降のものだけ残す
+  const active = allData.filter(d => d.end && d.end >= today);
+  const groups = new Map();
+  active.forEach(d => {
+    if (!groups.has(d.name)) groups.set(d.name, []);
+    groups.get(d.name).push(d);
+  });
+  const result = [];
+  for (const [name, records] of groups.entries()) {
+    records.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+    const now = records.find(r => r.start && r.start <= today && r.end >= today);
+    const future = records.filter(r => r.start && r.start > today);
+    let next = null, upcoming = null;
+    if (now) {
+      next = future[0] || null;
+    } else if (future.length > 0) {
+      upcoming = future[0]; // 「今」が無く、未来の予定だけある
+    }
+    if (!now && !upcoming) continue;
+    result.push({ name, now, next, upcoming });
+  }
+  return result;
+}
+
 function render() {
   const q = document.getElementById('search').value.trim().toLowerCase();
-  const f = allData.filter(d =>
-    d.name.toLowerCase().includes(q) ||
-    d.genba.toLowerCase().includes(q) ||
-    (d.kantoku || '').toLowerCase().includes(q)
-  );
+  const groups = buildWorkerGroups();
+  const filtered = groups.filter(g => {
+    if (!q) return true;
+    const slots = [g.now, g.next, g.upcoming].filter(Boolean);
+    return g.name.toLowerCase().includes(q) ||
+           slots.some(s =>
+             (s.genba || '').toLowerCase().includes(q) ||
+             (s.kantoku || '').toLowerCase().includes(q)
+           );
+  });
   const sub = document.getElementById('header-sub');
-  if (sub) sub.textContent = allData.length + '名 稼働中';
-  document.getElementById('count').textContent = f.length + '名';
-  if (!f.length) { document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>'; return; }
-  document.getElementById('list').innerHTML = f.map((d, i) => {
+  if (sub) sub.textContent = groups.length + '名 稼働中';
+  document.getElementById('count').textContent = filtered.length + '名';
+  if (!filtered.length) { document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>'; return; }
+
+  document.getElementById('list').innerHTML = filtered.map((g, i) => {
     const c = COLORS[i % COLORS.length];
-    const kt = hasKantoku(d.kantoku)
-      ? `<span class="kantoku-tag has">監督 ${esc(d.kantoku)}</span>`
-      : `<span class="kantoku-tag none">監督 なし</span>`;
+    let slotsHtml = '';
+
+    if (g.now) {
+      const kt = hasKantoku(g.now.kantoku)
+        ? `<span class="kantoku-tag has">監督 ${esc(g.now.kantoku)}</span>`
+        : `<span class="kantoku-tag none">監督 なし</span>`;
+      slotsHtml += `<div class="slot-box">
+        <div class="slot-header">
+          <span class="slot-badge now">今</span>
+          <button class="slot-edit" onclick="openEdit(${g.now.rowIndex})">編集</button>
+        </div>
+        <div class="slot-genba">${esc(g.now.genba)}</div>
+        <div class="slot-meta">
+          <span class="slot-koki">${fmt(g.now.start)} 〜 ${fmt(g.now.end)}</span>
+          ${kt}
+        </div>
+      </div>`;
+      if (g.next) {
+        slotsHtml += `<div class="slot-box next">
+          <div class="slot-header">
+            <span class="slot-badge next">次</span>
+            <button class="slot-edit" onclick="openEdit(${g.next.rowIndex})">編集</button>
+          </div>
+          <div class="slot-genba">${esc(g.next.genba)}</div>
+          <div class="slot-meta">
+            <span class="slot-koki">${fmt(g.next.start)}〜${fmt(g.next.end)}</span>
+          </div>
+        </div>`;
+      }
+    } else if (g.upcoming) {
+      const kt = hasKantoku(g.upcoming.kantoku)
+        ? `<span class="kantoku-tag has">監督 ${esc(g.upcoming.kantoku)}</span>`
+        : `<span class="kantoku-tag none">監督 なし</span>`;
+      slotsHtml += `<div class="slot-box upcoming">
+        <div class="slot-header">
+          <span class="slot-badge upcoming">開始前</span>
+          <button class="slot-edit" onclick="openEdit(${g.upcoming.rowIndex})">編集</button>
+        </div>
+        <div class="slot-genba">${esc(g.upcoming.genba)}</div>
+        <div class="slot-meta">
+          <span class="slot-koki">${fmt(g.upcoming.start)} 〜 ${fmt(g.upcoming.end)}</span>
+          ${kt}
+        </div>
+      </div>`;
+    }
+
     return `<div class="card">
       <div class="card-top">
         <div class="card-name-row">
-          <div class="avatar" style="background:${c.bg};color:${c.color}">${esc(initials(d.name))}</div>
-          <div class="name">${esc(d.name)}</div>
-        </div>
-        <div class="card-btns">
-          <button class="edit-btn" onclick="openEdit(${d.rowIndex})">編集</button>
-          <button class="del-btn" onclick="del(${d.rowIndex})">削除</button>
+          <div class="avatar" style="background:${c.bg};color:${c.color}">${esc(initials(g.name))}</div>
+          <div class="name">${esc(g.name)}</div>
         </div>
       </div>
-      <div class="card-body">
-        <div class="genba-name">${esc(d.genba)}</div>
-        <div class="koki-row">
-          <span class="koki">${fmt(d.start)} 〜 ${fmt(d.end)}</span>
-          ${kt}
-        </div>
-      </div>
+      ${slotsHtml}
     </div>`;
   }).join('');
 }
@@ -493,6 +562,12 @@ function del(idx) {
   delTarget = idx;
   document.getElementById('del-overlay').classList.add('show');
   document.getElementById('del-modal').classList.add('show');
+}
+function delFromEdit() {
+  const idx = parseInt(document.getElementById('edit-row').value);
+  if (!idx) return;
+  closeModal();
+  del(idx);
 }
 function closeDelModal() {
   delTarget = null;
@@ -532,23 +607,44 @@ function openEdit(idx) {
   const d = allData.find(r => r.rowIndex === idx);
   if (!d) return;
   document.getElementById('edit-row').value = idx;
+
+  // 「今」「次」バッジを設定
+  const today = todayStr();
+  const badgeWrap = document.getElementById('edit-slot-badge-wrap');
+  const badge = document.getElementById('edit-slot-badge');
+  let badgeType = null;
+  if (d.start && d.end) {
+    if (d.start <= today && d.end >= today) badgeType = 'now';
+    else if (d.start > today) badgeType = 'next';
+  }
+  if (badgeType === 'now') {
+    badge.className = 'slot-badge now';
+    badge.textContent = '今';
+    badgeWrap.style.display = 'block';
+  } else if (badgeType === 'next') {
+    badge.className = 'slot-badge next';
+    badge.textContent = '次';
+    badgeWrap.style.display = 'block';
+  } else {
+    badgeWrap.style.display = 'none';
+  }
+
   const ws = document.getElementById('edit-worker');
   const gs = document.getElementById('edit-genba');
   ws.innerHTML = ''; gs.innerHTML = '';
   masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w.name; if (w.name === d.name) o.selected = true; ws.appendChild(o); });
+  // マスタにない現場名なら、現在の値をプルダウン先頭に追加
+  const inMaster = masters.genbas.some(g => g.name === d.genba);
+  if (!inMaster && d.genba) {
+    const cur = document.createElement('option');
+    cur.value = d.genba; cur.textContent = d.genba;
+    cur.selected = true;
+    gs.appendChild(cur);
+  }
   masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; if (g.name === d.genba) o.selected = true; gs.appendChild(o); });
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
-  // マスタにない現場名の場合は「直接入力する」を選択して入力欄に値をセット
-  const inMaster = masters.genbas.some(g => g.name === d.genba);
-  if (!inMaster) {
-    gs.value = '__free__';
-    document.getElementById('edit-genba-free').value = d.genba;
-    document.getElementById('edit-genba-free').style.display = 'block';
-    document.getElementById('edit-kantoku-group').style.display = 'none';
-  } else {
-    document.getElementById('edit-genba-free').style.display = 'none';
-    document.getElementById('edit-kantoku-group').style.display = 'block';
-  }
+  document.getElementById('edit-genba-free').style.display = 'none';
+  document.getElementById('edit-kantoku-group').style.display = 'block';
   document.getElementById('edit-start').value = d.start;
   document.getElementById('edit-end').value = d.end;
   onEditGenbaChange();
@@ -644,7 +740,6 @@ function resetRegister() {
 // ── マスタ管理 ──
 let currentTab = 'genba';
 
-// ── ログイン ──
 function openLoginModal() {
   document.getElementById('login-password').value = '';
   document.getElementById('login-err').textContent = '';
@@ -686,7 +781,6 @@ async function submitLogin() {
     document.getElementById('login-err').textContent = '通信エラーが発生しました';
   }
 }
-// Enterキーでログイン
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-modal-bg').style.display === 'block') {
     submitLogin();
@@ -717,6 +811,20 @@ async function loadMasters() {
   hideOverlay();
 }
 
+// 現場マスタの監督名を重複排除して取得（読み取り専用ビュー用）
+function getKantokuListFromGenbas() {
+  const map = new Map();
+  (masters.genbas || []).forEach(g => {
+    const k = (g.kantoku || '').trim();
+    if (k && k !== 'なし') {
+      map.set(k, (map.get(k) || 0) + 1);
+    }
+  });
+  return Array.from(map.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+}
+
 function renderMasterList() {
   const container = document.getElementById('master-list');
   if (currentTab === 'genba') {
@@ -740,8 +848,8 @@ function renderMasterList() {
     }
     container.innerHTML = html;
   } else if (currentTab === 'kantoku') {
-    const items = masters.kantokus || [];
-    let html = `<button class="master-add-btn" onclick="openKantokuModal()">＋ 監督を追加</button>`;
+    const items = getKantokuListFromGenbas();
+    let html = `<div class="master-empty" style="padding:14px 16px;text-align:left;font-size:12px;color:#666;background:#fff;border:1px solid #DDD;border-radius:10px;margin-bottom:10px;">監督名は「現場」タブで現場ごとに設定します。<br>ここでは現場マスタに登録されている監督が自動表示されます。</div>`;
     if (!items.length) {
       html += '<div class="master-empty">監督が登録されていません</div>';
     } else {
@@ -749,10 +857,7 @@ function renderMasterList() {
         <div class="master-item">
           <div class="master-item-info">
             <div class="master-item-name">${esc(k.name)}</div>
-          </div>
-          <div class="master-item-btns">
-            <button class="master-edit" onclick="openKantokuModal(${k.rowIndex})">編集</button>
-            <button class="master-del" onclick="deleteKantoku(${k.rowIndex}, '${esc(k.name).replace(/'/g, "\\'")}')">削除</button>
+            <div class="master-item-sub">担当現場: ${k.count}件</div>
           </div>
         </div>
       `).join('');
@@ -782,10 +887,6 @@ function renderMasterList() {
 
 // 現場マスタ：追加・編集モーダル
 function getUniqueKantokuList() {
-  // 監督マスタから取得（無ければ現場リストの監督名から重複排除）
-  if (masters.kantokus && masters.kantokus.length) {
-    return masters.kantokus.map(k => k.name).filter(Boolean).sort();
-  }
   const set = new Set();
   (masters.genbas || []).forEach(g => {
     const k = (g.kantoku || '').trim();
@@ -809,7 +910,6 @@ function openGenbaModal(rowIndex) {
   document.getElementById('genba-modal-title').textContent = rowIndex ? '現場を編集' : '現場を追加';
   document.getElementById('genba-edit-row').value = rowIndex || '';
 
-  // 監督プルダウンを組み立て
   const sel = document.getElementById('genba-input-kantoku-select');
   const free = document.getElementById('genba-input-kantoku-free');
   free.style.display = 'none';
@@ -832,7 +932,6 @@ function openGenbaModal(rowIndex) {
     if (g) {
       document.getElementById('genba-input-name').value = g.name || '';
       const current = (g.kantoku || '').trim();
-      // 既存の選択肢にあればそれを選択、なければ新規入力扱い
       const found = Array.from(sel.options).some(o => o.value === current);
       if (current && found) {
         sel.value = current;
@@ -874,41 +973,6 @@ async function deleteGenba(rowIndex, name) {
   if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
   showOverlay('削除中...');
   await apiPost({ action: 'deleteGenba', rowIndex, password: masterPassword });
-  await loadMasters();
-}
-
-// 監督マスタ：追加・編集モーダル
-function openKantokuModal(rowIndex) {
-  document.getElementById('kantoku-modal-title').textContent = rowIndex ? '監督を編集' : '監督を追加';
-  document.getElementById('kantoku-edit-row').value = rowIndex || '';
-  if (rowIndex) {
-    const k = (masters.kantokus || []).find(x => x.rowIndex === rowIndex);
-    if (k) document.getElementById('kantoku-input-name').value = k.name || '';
-  } else {
-    document.getElementById('kantoku-input-name').value = '';
-  }
-  document.getElementById('kantoku-modal-bg').style.display = 'block';
-}
-function closeKantokuModal() {
-  document.getElementById('kantoku-modal-bg').style.display = 'none';
-}
-async function saveKantoku() {
-  const rowIndex = document.getElementById('kantoku-edit-row').value;
-  const name = document.getElementById('kantoku-input-name').value.trim();
-  if (!name) { alert('監督名を入力してください'); return; }
-  closeKantokuModal();
-  showOverlay('保存中...');
-  if (rowIndex) {
-    await apiPost({ action: 'updateKantoku', rowIndex: parseInt(rowIndex), name, password: masterPassword });
-  } else {
-    await apiPost({ action: 'addKantoku', name, password: masterPassword });
-  }
-  await loadMasters();
-}
-async function deleteKantoku(rowIndex, name) {
-  if (!confirm('「' + name + '」を削除しますか？\n過去の登録履歴はそのまま残ります。')) return;
-  showOverlay('削除中...');
-  await apiPost({ action: 'deleteKantoku', rowIndex, password: masterPassword });
   await loadMasters();
 }
 
