@@ -1042,6 +1042,11 @@ async function loadMasters() {
 // 現場マスタの監督名を重複排除して取得（読み取り専用ビュー用）
 function getKantokuListFromGenbas() {
   const map = new Map();
+  // まず監督リストシートの監督を全員0件で入れておく
+  (masters.kantokus || []).forEach(k => {
+    if (k.name) map.set(k.name, 0);
+  });
+  // 現場マスタに含まれる監督をカウント
   (masters.genbas || []).forEach(g => {
     parseKantokus(g.kantoku).forEach(k => {
       map.set(k, (map.get(k) || 0) + 1);
@@ -1115,6 +1120,11 @@ function renderMasterList() {
 // 現場マスタ：追加・編集モーダル
 function getUniqueKantokuList() {
   const set = new Set();
+  // 監督リストシートにある監督
+  (masters.kantokus || []).forEach(k => {
+    if (k.name) set.add(k.name);
+  });
+  // 現場マスタに含まれる監督（カンマ区切り）
   (masters.genbas || []).forEach(g => {
     parseKantokus(g.kantoku).forEach(k => set.add(k));
   });
