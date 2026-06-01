@@ -189,6 +189,11 @@ input[type=date]{padding:11px 8px;font-size:14px;}
       <div class="kantoku-disp-reg" id="reg-kantoku-disp">現場を選ぶと自動表示されます</div>
       <input type="hidden" id="reg-kantoku">
     </div>
+    <div class="group" id="reg-kantoku-free-group" style="display:none;">
+      <label>監督名</label>
+      <select id="reg-kantoku-free-select" onchange="onRegKantokuFreeChange()"></select>
+      <input type="text" id="reg-kantoku-free-input" placeholder="監督名を入力" style="display:none;width:100%;padding:11px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;">
+    </div>
     <div class="group">
       <label>開始日</label>
       <input type="date" id="inp-start" onchange="updateRegKoki()">
@@ -248,8 +253,8 @@ input[type=date]{padding:11px 8px;font-size:14px;}
     <label>現場名</label>
     <input type="text" id="genba-input-name" placeholder="例：渋谷区神南ビル新築工事">
     <label>監督名</label>
-    <select id="genba-input-kantoku-select" onchange="onGenbaKantokuChange()"></select>
-    <input type="text" id="genba-input-kantoku-free" placeholder="監督名を入力" style="display:none;margin-top:8px;">
+    <div id="genba-kantoku-rows"></div>
+    <button type="button" id="genba-kantoku-add-btn" onclick="addGenbaKantokuRow()" style="width:100%;padding:8px;background:#F5F5F5;border:1px dashed #BBB;border-radius:8px;font-size:12px;font-weight:600;color:#666;cursor:pointer;margin-top:6px;">＋ 監督を追加</button>
     <div class="modal-btns">
       <button class="cancel-btn" onclick="closeGenbaModal()">キャンセル</button>
       <button class="save-btn" onclick="saveGenba()">保存</button>
@@ -284,6 +289,11 @@ input[type=date]{padding:11px 8px;font-size:14px;}
       <label>監督名</label>
       <div class="kantoku-disp" id="add-genba-kantoku-disp">現場を選ぶと自動表示されます</div>
       <input type="hidden" id="add-genba-kantoku">
+    </div>
+    <div id="add-genba-kantoku-free-group" style="display:none;">
+      <label>監督名</label>
+      <select id="add-genba-kantoku-free-select" onchange="onAddGenbaKantokuFreeChange()"></select>
+      <input type="text" id="add-genba-kantoku-free-input" placeholder="監督名を入力" style="display:none;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;">
     </div>
     <div class="date-group">
       <label>開始日</label>
@@ -320,6 +330,11 @@ input[type=date]{padding:11px 8px;font-size:14px;}
     <div id="edit-kantoku-group">
       <label>監督名</label>
       <div class="kantoku-disp" id="edit-kantoku-disp">—</div>
+    </div>
+    <div id="edit-kantoku-free-group" style="display:none;">
+      <label>監督名</label>
+      <select id="edit-kantoku-free-select" onchange="onEditKantokuFreeChange()"></select>
+      <input type="text" id="edit-kantoku-free-input" placeholder="監督名を入力" style="display:none;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;">
     </div>
     <input type="hidden" id="edit-kantoku">
     <div class="date-group">
@@ -386,6 +401,23 @@ function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&
 function hasKantoku(k) {
   const v = (k || '').trim();
   return v !== '' && v !== 'なし';
+}
+// 監督文字列をパース（カンマ・読点区切り、空・「なし」は除外）
+function parseKantokus(k) {
+  if (!k) return [];
+  return String(k).split(/[,、]/).map(s => s.trim()).filter(s => s && s !== 'なし');
+}
+// 監督配列を保存用文字列に変換
+function joinKantokus(arr) {
+  const cleaned = (arr || []).map(s => (s || '').trim()).filter(s => s && s !== 'なし');
+  if (cleaned.length === 0) return 'なし';
+  return cleaned.join(',');
+}
+// 表示用：「佐藤 ・ 高橋」のように中黒で繋ぐ
+function formatKantokus(k) {
+  const arr = parseKantokus(k);
+  if (arr.length === 0) return '';
+  return arr.join(' ・ ');
 }
 // 今日の日付（YYYY-MM-DD）
 function todayStr() {
@@ -546,7 +578,7 @@ function render() {
 
     if (g.now) {
       const kt = hasKantoku(g.now.kantoku)
-        ? `<span class="kantoku-tag has">監督 ${esc(g.now.kantoku)}</span>`
+        ? `<span class="kantoku-tag has">監督 ${esc(formatKantokus(g.now.kantoku))}</span>`
         : `<span class="kantoku-tag none">監督 なし</span>`;
       slotsHtml += `<div class="slot-box">
         <div class="slot-header">
@@ -573,7 +605,7 @@ function render() {
       }
     } else if (g.upcoming) {
       const kt = hasKantoku(g.upcoming.kantoku)
-        ? `<span class="kantoku-tag has">監督 ${esc(g.upcoming.kantoku)}</span>`
+        ? `<span class="kantoku-tag has">監督 ${esc(formatKantokus(g.upcoming.kantoku))}</span>`
         : `<span class="kantoku-tag none">監督 なし</span>`;
       slotsHtml += `<div class="slot-box upcoming">
         <div class="slot-header">
@@ -669,18 +701,28 @@ function onEditGenbaChange() {
   const val = document.getElementById('edit-genba').value;
   const freeInput = document.getElementById('edit-genba-free');
   const kantokuGroup = document.getElementById('edit-kantoku-group');
+  const kantokuFreeGroup = document.getElementById('edit-kantoku-free-group');
   if (val === '__free__') {
     freeInput.style.display = 'block';
     kantokuGroup.style.display = 'none';
-    document.getElementById('edit-kantoku').value = 'なし';
+    kantokuFreeGroup.style.display = 'block';
+    // 監督プルダウンを組み立て（既存の値があれば復元）
+    const currentK = (document.getElementById('edit-kantoku').value || '').trim();
+    const selectEl = document.getElementById('edit-kantoku-free-select');
+    buildKantokuFreeSelect(selectEl, currentK && currentK !== 'なし' ? currentK : '');
+    handleKantokuFreeChange('edit-kantoku-free-select', 'edit-kantoku-free-input');
   } else {
     freeInput.style.display = 'none';
     kantokuGroup.style.display = 'block';
+    kantokuFreeGroup.style.display = 'none';
     const found = masters.genbas.find(g => g.name === val);
     const k = found ? found.kantoku : '';
     document.getElementById('edit-kantoku').value = k;
-    document.getElementById('edit-kantoku-disp').textContent = k || '—';
+    document.getElementById('edit-kantoku-disp').textContent = formatKantokus(k) || '—';
   }
+}
+function onEditKantokuFreeChange() {
+  handleKantokuFreeChange('edit-kantoku-free-select', 'edit-kantoku-free-input');
 }
 function openEdit(idx) {
   const d = allData.find(r => r.rowIndex === idx);
@@ -724,6 +766,11 @@ function openEdit(idx) {
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
   document.getElementById('edit-genba-free').style.display = 'none';
   document.getElementById('edit-kantoku-group').style.display = 'block';
+  document.getElementById('edit-kantoku-free-group').style.display = 'none';
+  document.getElementById('edit-kantoku-free-input').style.display = 'none';
+  document.getElementById('edit-kantoku-free-input').value = '';
+  // 現レコードの監督値を hidden にセット（onEditGenbaChange が直接入力モードで参照する）
+  document.getElementById('edit-kantoku').value = d.kantoku || '';
   document.getElementById('edit-start').value = d.start;
   document.getElementById('edit-end').value = d.end;
   onEditGenbaChange();
@@ -736,7 +783,9 @@ async function saveEdit() {
   const name = document.getElementById('edit-worker').value;
   const selGenba = document.getElementById('edit-genba').value;
   const genba = selGenba === '__free__' ? document.getElementById('edit-genba-free').value.trim() : selGenba;
-  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('edit-kantoku').value;
+  const kantoku = selGenba === '__free__'
+    ? readKantokuFreeValue('edit-kantoku-free-select', 'edit-kantoku-free-input')
+    : document.getElementById('edit-kantoku').value;
   const start = document.getElementById('edit-start').value;
   const end = document.getElementById('edit-end').value;
   if (!start || !end) { alert('日付を入力してください'); return; }
@@ -776,6 +825,9 @@ function openAddGenbaModal(workerName) {
   document.getElementById('add-genba-input-free').value = '';
   document.getElementById('add-genba-input-free').style.display = 'none';
   document.getElementById('add-genba-kantoku-group').style.display = 'block';
+  document.getElementById('add-genba-kantoku-free-group').style.display = 'none';
+  document.getElementById('add-genba-kantoku-free-input').style.display = 'none';
+  document.getElementById('add-genba-kantoku-free-input').value = '';
   document.getElementById('add-genba-kantoku').value = '';
   document.getElementById('add-genba-kantoku-disp').textContent = '現場を選ぶと自動表示されます';
   document.getElementById('add-genba-start').value = '';
@@ -790,25 +842,34 @@ function onAddGenbaChange() {
   const val = document.getElementById('add-genba-input-select').value;
   const freeInput = document.getElementById('add-genba-input-free');
   const kantokuGroup = document.getElementById('add-genba-kantoku-group');
+  const kantokuFreeGroup = document.getElementById('add-genba-kantoku-free-group');
   if (val === '__free__') {
     freeInput.style.display = 'block';
     kantokuGroup.style.display = 'none';
-    document.getElementById('add-genba-kantoku').value = '';
-    document.getElementById('add-genba-kantoku-disp').textContent = 'なし';
+    kantokuFreeGroup.style.display = 'block';
+    const selectEl = document.getElementById('add-genba-kantoku-free-select');
+    buildKantokuFreeSelect(selectEl, '');
+    handleKantokuFreeChange('add-genba-kantoku-free-select', 'add-genba-kantoku-free-input');
   } else {
     freeInput.style.display = 'none';
     kantokuGroup.style.display = 'block';
+    kantokuFreeGroup.style.display = 'none';
     const found = masters.genbas.find(g => g.name === val);
     const k = found ? found.kantoku : '';
     document.getElementById('add-genba-kantoku').value = k;
-    document.getElementById('add-genba-kantoku-disp').textContent = k || '（未設定）';
+    document.getElementById('add-genba-kantoku-disp').textContent = formatKantokus(k) || '（未設定）';
   }
+}
+function onAddGenbaKantokuFreeChange() {
+  handleKantokuFreeChange('add-genba-kantoku-free-select', 'add-genba-kantoku-free-input');
 }
 async function saveAddGenba() {
   const name = document.getElementById('add-genba-target-name').value;
   const selGenba = document.getElementById('add-genba-input-select').value;
   const genba = selGenba === '__free__' ? document.getElementById('add-genba-input-free').value.trim() : selGenba;
-  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('add-genba-kantoku').value;
+  const kantoku = selGenba === '__free__'
+    ? readKantokuFreeValue('add-genba-kantoku-free-select', 'add-genba-kantoku-free-input')
+    : document.getElementById('add-genba-kantoku').value;
   const start = document.getElementById('add-genba-start').value;
   const end = document.getElementById('add-genba-end').value;
   if (!genba || !start || !end) {
@@ -839,25 +900,34 @@ function onRegGenbaChange() {
   const val = document.getElementById('sel-genba').value;
   const freeInput = document.getElementById('inp-genba-free');
   const kantokuGroup = document.getElementById('reg-kantoku-group');
+  const kantokuFreeGroup = document.getElementById('reg-kantoku-free-group');
   if (val === '__free__') {
     freeInput.style.display = 'block';
     kantokuGroup.style.display = 'none';
-    document.getElementById('reg-kantoku').value = '';
-    document.getElementById('reg-kantoku-disp').textContent = 'なし';
+    kantokuFreeGroup.style.display = 'block';
+    const selectEl = document.getElementById('reg-kantoku-free-select');
+    buildKantokuFreeSelect(selectEl, '');
+    handleKantokuFreeChange('reg-kantoku-free-select', 'reg-kantoku-free-input');
   } else {
     freeInput.style.display = 'none';
     kantokuGroup.style.display = 'block';
+    kantokuFreeGroup.style.display = 'none';
     const found = masters.genbas.find(g => g.name === val);
     const k = found ? found.kantoku : '';
     document.getElementById('reg-kantoku').value = k;
-    document.getElementById('reg-kantoku-disp').textContent = k || '（未設定）';
+    document.getElementById('reg-kantoku-disp').textContent = formatKantokus(k) || '（未設定）';
   }
+}
+function onRegKantokuFreeChange() {
+  handleKantokuFreeChange('reg-kantoku-free-select', 'reg-kantoku-free-input');
 }
 async function submitRegister() {
   const name = document.getElementById('sel-worker').value;
   const selGenba = document.getElementById('sel-genba').value;
   const genba = selGenba === '__free__' ? document.getElementById('inp-genba-free').value.trim() : selGenba;
-  const kantoku = selGenba === '__free__' ? 'なし' : document.getElementById('reg-kantoku').value;
+  const kantoku = selGenba === '__free__'
+    ? readKantokuFreeValue('reg-kantoku-free-select', 'reg-kantoku-free-input')
+    : document.getElementById('reg-kantoku').value;
   const start = document.getElementById('inp-start').value;
   const end = document.getElementById('inp-end').value;
   if (!name || !genba || !start || !end) {
@@ -871,7 +941,7 @@ async function submitRegister() {
   await apiPost({ action: 'add', name, genba, kantoku, start, end });
   hideOverlay();
   document.getElementById('reg-success-msg').innerHTML =
-    name + ' → ' + genba + (kantoku ? ' (監督: ' + kantoku + ')' : '') + '<br>' + fmt(start) + '〜' + fmt(end);
+    name + ' → ' + genba + (hasKantoku(kantoku) ? ' (監督: ' + formatKantokus(kantoku) + ')' : '') + '<br>' + fmt(start) + '〜' + fmt(end);
   document.getElementById('reg-form').style.display = 'none';
   document.getElementById('reg-success').style.display = 'block';
 }
@@ -881,6 +951,9 @@ function resetRegister() {
   document.getElementById('inp-genba-free').value = '';
   document.getElementById('inp-genba-free').style.display = 'none';
   document.getElementById('reg-kantoku-group').style.display = 'block';
+  document.getElementById('reg-kantoku-free-group').style.display = 'none';
+  document.getElementById('reg-kantoku-free-input').style.display = 'none';
+  document.getElementById('reg-kantoku-free-input').value = '';
   document.getElementById('reg-kantoku').value = '';
   document.getElementById('reg-kantoku-disp').textContent = '現場を選ぶと自動表示されます';
   document.getElementById('inp-start').value = '';
@@ -970,10 +1043,9 @@ async function loadMasters() {
 function getKantokuListFromGenbas() {
   const map = new Map();
   (masters.genbas || []).forEach(g => {
-    const k = (g.kantoku || '').trim();
-    if (k && k !== 'なし') {
+    parseKantokus(g.kantoku).forEach(k => {
       map.set(k, (map.get(k) || 0) + 1);
-    }
+    });
   });
   return Array.from(map.entries())
     .map(([name, count]) => ({ name, count }))
@@ -992,7 +1064,7 @@ function renderMasterList() {
         <div class="master-item">
           <div class="master-item-info">
             <div class="master-item-name">${esc(g.name)}</div>
-            <div class="master-item-sub">監督: ${esc(g.kantoku) || 'なし'}</div>
+            <div class="master-item-sub">監督: ${esc(formatKantokus(g.kantoku)) || 'なし'}</div>
           </div>
           <div class="master-item-btns">
             <button class="master-edit" onclick="openGenbaModal(${g.rowIndex})">編集</button>
@@ -1044,14 +1116,38 @@ function renderMasterList() {
 function getUniqueKantokuList() {
   const set = new Set();
   (masters.genbas || []).forEach(g => {
-    const k = (g.kantoku || '').trim();
-    if (k && k !== 'なし') set.add(k);
+    parseKantokus(g.kantoku).forEach(k => set.add(k));
   });
   return Array.from(set).sort();
 }
-function onGenbaKantokuChange() {
-  const val = document.getElementById('genba-input-kantoku-select').value;
-  const free = document.getElementById('genba-input-kantoku-free');
+
+// 直接入力モードの監督プルダウンを組み立てる共通関数
+function buildKantokuFreeSelect(selectEl, currentValue) {
+  selectEl.innerHTML = '';
+  const optNone = document.createElement('option');
+  optNone.value = ''; optNone.textContent = '─── （なし）';
+  selectEl.appendChild(optNone);
+  getUniqueKantokuList().forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k;
+    selectEl.appendChild(o);
+  });
+  const optNew = document.createElement('option');
+  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
+  selectEl.appendChild(optNew);
+  // 値を復元
+  if (currentValue) {
+    const found = Array.from(selectEl.options).some(o => o.value === currentValue);
+    if (found) selectEl.value = currentValue;
+    else selectEl.value = '';
+  } else {
+    selectEl.value = '';
+  }
+}
+// 直接入力モードの監督プルダウン変更時の共通処理
+function handleKantokuFreeChange(selectId, freeInputId) {
+  const val = document.getElementById(selectId).value;
+  const free = document.getElementById(freeInputId);
   if (val === '__new__') {
     free.style.display = 'block';
     free.value = '';
@@ -1061,15 +1157,26 @@ function onGenbaKantokuChange() {
     free.value = '';
   }
 }
-function openGenbaModal(rowIndex) {
-  document.getElementById('genba-modal-title').textContent = rowIndex ? '現場を編集' : '現場を追加';
-  document.getElementById('genba-edit-row').value = rowIndex || '';
+// 直接入力モードの監督プルダウンから最終的な値を取り出す共通処理
+function readKantokuFreeValue(selectId, freeInputId) {
+  const val = document.getElementById(selectId).value;
+  if (val === '__new__') {
+    return (document.getElementById(freeInputId).value || '').trim() || 'なし';
+  }
+  return val || 'なし';
+}
+// 現場マスタの監督欄：1行分を組み立てる
+function buildGenbaKantokuRow(value) {
+  const row = document.createElement('div');
+  row.className = 'genba-kantoku-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
 
-  const sel = document.getElementById('genba-input-kantoku-select');
-  const free = document.getElementById('genba-input-kantoku-free');
-  free.style.display = 'none';
-  free.value = '';
-  sel.innerHTML = '';
+  const selWrap = document.createElement('div');
+  selWrap.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;';
+
+  const sel = document.createElement('select');
+  sel.style.cssText = 'width:100%;';
+  // 選択肢を組み立て
   const optNone = document.createElement('option');
   optNone.value = ''; optNone.textContent = '（なし）';
   sel.appendChild(optNone);
@@ -1082,38 +1189,100 @@ function openGenbaModal(rowIndex) {
   optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
   sel.appendChild(optNew);
 
+  const free = document.createElement('input');
+  free.type = 'text';
+  free.placeholder = '監督名を入力';
+  free.style.cssText = 'display:none;';
+  free.className = 'genba-kantoku-free';
+
+  // 値の復元
+  const v = (value || '').trim();
+  if (v && Array.from(sel.options).some(o => o.value === v)) {
+    sel.value = v;
+  } else if (v) {
+    sel.value = '__new__';
+    free.style.display = 'block';
+    free.value = v;
+  } else {
+    sel.value = '';
+  }
+
+  sel.addEventListener('change', () => {
+    if (sel.value === '__new__') {
+      free.style.display = 'block';
+      free.value = '';
+      setTimeout(() => free.focus(), 50);
+    } else {
+      free.style.display = 'none';
+      free.value = '';
+    }
+  });
+
+  selWrap.appendChild(sel);
+  selWrap.appendChild(free);
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.textContent = '×';
+  delBtn.style.cssText = 'font-size:14px;color:#FF3B30;background:#FFF0EF;border:none;border-radius:8px;padding:0 12px;font-weight:600;cursor:pointer;height:42px;flex-shrink:0;';
+  delBtn.onclick = () => { row.remove(); };
+
+  row.appendChild(selWrap);
+  row.appendChild(delBtn);
+  return row;
+}
+
+function addGenbaKantokuRow(value) {
+  const container = document.getElementById('genba-kantoku-rows');
+  container.appendChild(buildGenbaKantokuRow(value || ''));
+}
+
+function openGenbaModal(rowIndex) {
+  document.getElementById('genba-modal-title').textContent = rowIndex ? '現場を編集' : '現場を追加';
+  document.getElementById('genba-edit-row').value = rowIndex || '';
+
+  // 監督行をリセット
+  const container = document.getElementById('genba-kantoku-rows');
+  container.innerHTML = '';
+
   if (rowIndex) {
     const g = (masters.genbas || []).find(x => x.rowIndex === rowIndex);
     if (g) {
       document.getElementById('genba-input-name').value = g.name || '';
-      const current = (g.kantoku || '').trim();
-      const found = Array.from(sel.options).some(o => o.value === current);
-      if (current && found) {
-        sel.value = current;
-      } else if (current) {
-        sel.value = '__new__';
-        free.style.display = 'block';
-        free.value = current;
+      const list = parseKantokus(g.kantoku);
+      if (list.length === 0) {
+        addGenbaKantokuRow(''); // デフォルトで1行
       } else {
-        sel.value = '';
+        list.forEach(k => addGenbaKantokuRow(k));
       }
+    } else {
+      document.getElementById('genba-input-name').value = '';
+      addGenbaKantokuRow('');
     }
   } else {
     document.getElementById('genba-input-name').value = '';
-    sel.value = '';
+    addGenbaKantokuRow('');
   }
   document.getElementById('genba-modal-bg').style.display = 'block';
 }
+
 function closeGenbaModal() {
   document.getElementById('genba-modal-bg').style.display = 'none';
 }
+
 async function saveGenba() {
   const rowIndex = document.getElementById('genba-edit-row').value;
   const name = document.getElementById('genba-input-name').value.trim();
-  const selVal = document.getElementById('genba-input-kantoku-select').value;
-  const kantoku = selVal === '__new__'
-    ? document.getElementById('genba-input-kantoku-free').value.trim()
-    : selVal;
+  // 全ての監督行から値を取り出す
+  const rows = document.querySelectorAll('#genba-kantoku-rows .genba-kantoku-row');
+  const kantokus = [];
+  rows.forEach(row => {
+    const sel = row.querySelector('select');
+    const free = row.querySelector('input.genba-kantoku-free');
+    const v = sel.value === '__new__' ? (free.value || '').trim() : sel.value;
+    if (v) kantokus.push(v);
+  });
+  const kantoku = joinKantokus(kantokus);
   if (!name) { alert('現場名を入力してください'); return; }
   closeGenbaModal();
   showOverlay('保存中...');
