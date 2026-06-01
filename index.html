@@ -67,6 +67,8 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .slot-badge.upcoming{color:#866216;background:#F4E2A8;}
 .slot-edit{font-size:11px;color:#666;background:#fff;border:1px solid #DDD;border-radius:6px;padding:3px 9px;font-weight:600;cursor:pointer;}
 .add-genba-btn{font-size:12px;color:#06A047;background:#E1F5EE;border:none;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer;flex-shrink:0;}
+.extras-toggle{width:100%;margin-top:6px;padding:8px;background:#F5F5F5;border:none;border-radius:8px;font-size:12px;font-weight:600;color:#666;cursor:pointer;}
+.extras-toggle:hover{background:#EEE;}
 .slot-genba{font-size:14px;font-weight:500;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .slot-meta{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
 .slot-koki{font-size:13px;color:#555;}
@@ -270,7 +272,7 @@ select,input[type=date]{width:100%;padding:11px 12px;border:1px solid #ddd;borde
 <div class="modal-bg" id="add-genba-modal-bg">
   <div class="modal">
     <div style="font-size:12px;color:#888;margin-bottom:4px;" id="add-genba-modal-subtitle"></div>
-    <h2 style="margin-bottom:14px;">現場を追加</h2>
+    <h2 style="margin-bottom:14px;">次の現場を追加</h2>
     <input type="hidden" id="add-genba-target-name">
     <label>現場名</label>
     <select id="add-genba-input-select" onchange="onAddGenbaChange()"><option value="">選択してください</option></select>
@@ -487,7 +489,7 @@ async function loadList() {
   hideOverlay();
 }
 
-// allData から作業員ごとに「今」「次」「開始前」を抽出してグループ化
+// allData から作業員ごとに「今」「次」「3件目以降」を抽出してグループ化
 function buildWorkerGroups() {
   const today = todayStr();
   // 終了予定日が今日以降のものだけ残す
@@ -502,14 +504,18 @@ function buildWorkerGroups() {
     records.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
     const now = records.find(r => r.start && r.start <= today && r.end >= today);
     const future = records.filter(r => r.start && r.start > today);
-    let next = null, upcoming = null;
+    let next = null, upcoming = null, extras = [];
     if (now) {
       next = future[0] || null;
+      // 3件目以降（「次」を除いた残り）
+      extras = future.slice(1);
     } else if (future.length > 0) {
-      upcoming = future[0]; // 「今」が無く、未来の予定だけある
+      upcoming = future[0]; // 「今」が無く、未来の予定だけある（メインに「開始前」として出す）
+      // upcoming を除いた残りは extras 扱い
+      extras = future.slice(1);
     }
     if (!now && !upcoming) continue;
-    result.push({ name, now, next, upcoming });
+    result.push({ name, now, next, upcoming, extras });
   }
   return result;
 }
@@ -579,17 +585,52 @@ function render() {
       </div>`;
     }
 
+    // 3件目以降：折りたたみ
+    if (g.extras && g.extras.length > 0) {
+      const extrasKey = `extras-${esc(g.name).replace(/[^a-zA-Z0-9]/g, '_')}-${i}`;
+      const extrasHtml = g.extras.map((r, idx) => `
+        <div class="slot-box next">
+          <div class="slot-header">
+            <span class="slot-badge next">${idx + 3}件目</span>
+            <button class="slot-edit" onclick="openEdit(${r.rowIndex})">編集</button>
+          </div>
+          <div class="slot-genba">${esc(r.genba)}</div>
+          <div class="slot-meta">
+            <span class="slot-koki">${fmt(r.start)}〜${fmt(r.end)}</span>
+          </div>
+        </div>
+      `).join('');
+      slotsHtml += `
+        <button class="extras-toggle" id="btn-${extrasKey}" onclick="toggleExtras('${extrasKey}')">他に${g.extras.length}件 ▾</button>
+        <div class="extras-wrap" id="${extrasKey}" style="display:none;">${extrasHtml}</div>
+      `;
+    }
+
     return `<div class="card">
       <div class="card-top">
         <div class="card-name-row">
           <div class="avatar" style="background:${c.bg};color:${c.color}">${esc(initials(g.name))}</div>
           <div class="name">${esc(g.name)}</div>
         </div>
-        <button class="add-genba-btn" onclick="openAddGenbaModal('${esc(g.name).replace(/'/g, "\\'")}')">＋ 現場を追加</button>
+        <button class="add-genba-btn" onclick="openAddGenbaModal('${esc(g.name).replace(/'/g, "\\'")}')">＋ 次の現場を追加</button>
       </div>
       ${slotsHtml}
     </div>`;
   }).join('');
+}
+
+// 3件目以降の折りたたみトグル
+function toggleExtras(key) {
+  const wrap = document.getElementById(key);
+  const btn = document.getElementById('btn-' + key);
+  if (!wrap || !btn) return;
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    btn.textContent = btn.textContent.replace('▾', '▴');
+  } else {
+    wrap.style.display = 'none';
+    btn.textContent = btn.textContent.replace('▴', '▾');
+  }
 }
 
 // ── 削除 ──
@@ -716,7 +757,7 @@ function updateAddGenbaKoki() {
 }
 function openAddGenbaModal(workerName) {
   document.getElementById('add-genba-target-name').value = workerName;
-  document.getElementById('add-genba-modal-subtitle').textContent = workerName + ' さんに現場を追加';
+  document.getElementById('add-genba-modal-subtitle').textContent = workerName + ' さんに次の現場を追加';
   // 現場プルダウンを組み立て
   const gs = document.getElementById('add-genba-input-select');
   gs.innerHTML = '<option value="">選択してください</option>';
