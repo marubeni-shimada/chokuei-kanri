@@ -569,7 +569,10 @@ function render() {
            );
   });
   const sub = document.getElementById('header-sub');
-  if (sub) sub.textContent = groups.length + '名 稼働中';
+  if (sub) {
+    const userPart = lineUserName ? `👤 ${lineUserName} / ` : '';
+    sub.textContent = userPart + groups.length + '名 稼働中';
+  }
   document.getElementById('count').textContent = filtered.length + '名';
   if (!filtered.length) { document.getElementById('list').innerHTML = '<div class="empty">該当なし</div>'; return; }
 
@@ -1351,27 +1354,39 @@ const LIFF_ID = '2009834318-AVs2m5Hb';
 let lineUserId = null;       // LINEユーザーID（LIFF内で開いた場合のみ取得）
 let lineUserName = null;     // 表示名（LIFF内で開いた場合のみ取得）
 
+function updateLiffStatus(msg) {
+  const sub = document.getElementById('header-sub');
+  if (sub) sub.textContent = msg;
+}
+
 async function initLiffAndLoad() {
   // LIFFが使える環境ならログイン情報を取得、ダメなら普通に動かす
   try {
     if (typeof liff !== 'undefined') {
+      updateLiffStatus('LIFF初期化中...');
       await liff.init({ liffId: LIFF_ID });
+      console.log('LIFF init OK. isInClient:', liff.isInClient(), 'isLoggedIn:', liff.isLoggedIn());
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile();
         lineUserId = profile.userId;
         lineUserName = profile.displayName;
         console.log('LIFF logged in:', lineUserName, lineUserId);
+        updateLiffStatus('👤 ' + lineUserName);
       } else {
-        // 未ログイン状態、LIFFブラウザ内ならログインを促す
         if (liff.isInClient()) {
           liff.login();
           return; // login() でリダイレクトされる
         }
-        // 外部ブラウザの場合はログインを強制しない（閲覧のみ可）
+        console.log('LIFF未ログイン（外部ブラウザ）');
+        updateLiffStatus('LIFF未ログイン');
       }
+    } else {
+      console.log('LIFF SDK 未読み込み');
+      updateLiffStatus('LIFF SDK 未読み込み');
     }
   } catch (e) {
     console.warn('LIFF init failed (continuing as guest):', e);
+    updateLiffStatus('LIFFエラー: ' + (e.message || e));
   }
   loadList();
 }
