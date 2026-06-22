@@ -139,6 +139,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 .del-cancel{background:#f5f5f5;color:#555;}
 .del-confirm{background:#FF3B30;color:#fff;}
 </style>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
 
@@ -1345,8 +1346,37 @@ async function deleteWorker(rowIndex, name) {
   await loadMasters();
 }
 
-// ── 初期化 ──
-loadList();
+// ── LIFF初期化 → 初期データ読み込み ──
+const LIFF_ID = '2009834318-AVs2m5Hb';
+let lineUserId = null;       // LINEユーザーID（LIFF内で開いた場合のみ取得）
+let lineUserName = null;     // 表示名（LIFF内で開いた場合のみ取得）
+
+async function initLiffAndLoad() {
+  // LIFFが使える環境ならログイン情報を取得、ダメなら普通に動かす
+  try {
+    if (typeof liff !== 'undefined') {
+      await liff.init({ liffId: LIFF_ID });
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile();
+        lineUserId = profile.userId;
+        lineUserName = profile.displayName;
+        console.log('LIFF logged in:', lineUserName, lineUserId);
+      } else {
+        // 未ログイン状態、LIFFブラウザ内ならログインを促す
+        if (liff.isInClient()) {
+          liff.login();
+          return; // login() でリダイレクトされる
+        }
+        // 外部ブラウザの場合はログインを強制しない（閲覧のみ可）
+      }
+    }
+  } catch (e) {
+    console.warn('LIFF init failed (continuing as guest):', e);
+  }
+  loadList();
+}
+
+initLiffAndLoad();
 </script>
 </body>
 </html>
