@@ -1001,6 +1001,10 @@ async function confirmDel() {
   allData = allData.filter(d => d.rowIndex !== idx);
   hideOverlay();
   render();
+  // カレンダー画面が表示中なら再描画
+  if (document.getElementById('page-calendar').classList.contains('active')) {
+    renderCalendar();
+  }
 }
 
 // ── 編集モーダル ──
@@ -1103,6 +1107,9 @@ async function saveEdit() {
   if (d) { d.name = name; d.genba = genba; d.kantoku = kantoku; d.start = start; d.end = end; }
   hideOverlay();
   render();
+  if (document.getElementById('page-calendar').classList.contains('active')) {
+    renderCalendar();
+  }
 }
 
 // ── 作業員カードからの「現場を追加」モーダル ──
