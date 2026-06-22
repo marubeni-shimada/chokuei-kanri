@@ -578,6 +578,40 @@ function showMaster() {
 // ─────────────────────────────────
 let calWeekStart = null;             // 表示中の週の月曜日 (Date)
 const FILTER_STORAGE_KEY = 'chokuei_visible_workers_v1';
+let userSettings = {};               // サーバーから読み込んだ自分の設定（LIFFログイン時のみ）
+
+// LIFFログイン済みならサーバーから設定を読み込む
+async function loadUserSettings() {
+  if (!lineUserId) return; // LIFF未ログインなら何もしない
+  try {
+    const res = await fetch(`${API_URL}?action=getUserSettings&userId=${encodeURIComponent(lineUserId)}`, { redirect: 'follow' });
+    const data = await res.json();
+    userSettings = data.settings || {};
+    console.log('User settings loaded:', userSettings);
+  } catch (e) {
+    console.warn('User settings load failed:', e);
+  }
+}
+
+// サーバーに保存（LIFFログイン時のみ）。失敗してもアプリは続行
+async function saveUserSettingsToServer() {
+  if (!lineUserId) return; // LIFF未ログインなら何もしない
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'saveUserSettings',
+        userId: lineUserId,
+        displayName: lineUserName || '',
+        settings: userSettings
+      }),
+      redirect: 'follow'
+    });
+  } catch (e) {
+    console.warn('User settings save failed:', e);
+  }
+}
 
 // 監督名から苗字を取り出す（スペース区切りの最初の部分）。複数なら「・」で繋ぐ
 function extractSurnames(kantoku) {
@@ -641,18 +675,33 @@ function calGoToday() {
   renderCalendar();
 }
 
-// localStorage から表示対象作業員リストを読む（無ければ全員）
+// 表示対象作業員リスト：LIFFログイン時はサーバー保存、未ログイン時はlocalStorage
 function getVisibleWorkers() {
-  try {
-    const raw = localStorage.getItem(FILTER_STORAGE_KEY);
-    if (!raw) return null; // 未設定なら全員表示
-    return JSON.parse(raw);
-  } catch(e) { return null; }
+  // LIFFログイン時：userSettings から取得
+  if (lineUserId && userSettings && Array.isArray(userSettings.visibleWorkers)) {
+    return userSettings.visibleWorkers;
+  }
+  // 未ログイン時：localStorageから
+  if (!lineUserId) {
+    try {
+      const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(e) { return null; }
+  }
+  return null; // ログイン済みだが未設定 → 全員
 }
 function setVisibleWorkers(names) {
-  try {
-    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(names));
-  } catch(e) {}
+  if (lineUserId) {
+    // サーバー保存（非同期、待たない）
+    userSettings.visibleWorkers = names;
+    saveUserSettingsToServer();
+  } else {
+    // localStorage 保存
+    try {
+      localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(names));
+    } catch(e) {}
+  }
 }
 
 function renderCalendar() {
@@ -1620,6 +1669,8 @@ async function initLiffAndLoad() {
         lineUserName = profile.displayName;
         console.log('LIFF logged in:', lineUserName, lineUserId);
         updateLiffStatus('👤 ' + lineUserName);
+        // ユーザー設定を読み込む（失敗してもアプリは続行）
+        await loadUserSettings();
       } else {
         if (liff.isInClient()) {
           liff.login();
