@@ -161,6 +161,8 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 .cal-table tbody td.weekend{background:#F5F5F5;}
 .cal-cell{cursor:pointer;font-size:10px;padding:8px 2px;font-weight:500;}
 .cal-cell:hover{filter:brightness(0.96);}
+.cal-empty-cell{cursor:pointer;}
+.cal-empty-cell:hover{background:#F0F8FF !important;}
 .cal-empty{padding:60px 20px;text-align:center;color:#bbb;font-size:14px;}
 /* 表示する人を選ぶモーダル */
 .filter-modal-list{max-height:60vh;overflow-y:auto;border:1px solid #EEE;border-radius:8px;margin-bottom:10px;}
@@ -756,7 +758,7 @@ function renderCalendar() {
         const display = surnames || rec.genba.split(/\s/)[0].slice(0, 4);
         html += `<td class="cal-cell" style="background:${c.bg};color:${c.color};" onclick="openEdit(${rec.rowIndex})" title="${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
       } else {
-        html += `<td class="${isWeekend ? 'weekend' : ''}"></td>`;
+        html += `<td class="${isWeekend ? 'weekend' : ''} cal-empty-cell" onclick="openAddGenbaFromCalendar('${esc(name).replace(/'/g, "\\'")}','${ds}')" title="クリックで現場を追加"></td>`;
       }
     });
     html += '</tr>';
@@ -816,6 +818,10 @@ async function loadList() {
     };
     allData = result.records || [];
     render();
+    // カレンダー画面が表示中なら再描画
+    if (document.getElementById('page-calendar').classList.contains('active')) {
+      renderCalendar();
+    }
   } catch(e) {
     document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
   }
@@ -1107,6 +1113,14 @@ function updateAddGenbaKoki() {
     document.getElementById('add-genba-koki-preview'),
     document.getElementById('add-genba-koki-days')
   );
+}
+// カレンダーの空白セルから「次の現場を追加」モーダルを開く（開始日プリフィル）
+function openAddGenbaFromCalendar(workerName, dateStr) {
+  openAddGenbaModal(workerName);
+  setTimeout(() => {
+    document.getElementById('add-genba-start').value = dateStr;
+    updateAddGenbaKoki();
+  }, 50);
 }
 function openAddGenbaModal(workerName) {
   document.getElementById('add-genba-target-name').value = workerName;
