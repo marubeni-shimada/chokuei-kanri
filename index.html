@@ -61,6 +61,7 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .kantoku-tag.has{background:#E6F1FB;color:#0C447C;}
 .kantoku-tag.none{background:#EEEEEE;color:#888;}
 .slot-box{border-radius:10px;padding:10px 12px;margin-top:6px;background:#F8F8F8;}
+.slot-box.now-spot{background:#FFF3E0;border:2px solid #FF9800;}
 .slot-box.next{background:#FAFAFA;border:1px dashed #DDD;}
 .slot-box.upcoming{background:#FFF8E8;border:1px dashed #D4B26A;}
 .slot-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
@@ -896,20 +897,55 @@ function buildWorkerGroups() {
     groups.get(d.name).push(d);
   });
   const result = [];
-  for (const [name, records] of groups.entries()) {
+  // 全作業員（スポットしかない人も拾うため、作業員リストからループ）
+  const workerNames = new Set();
+  groups.forEach((_, name) => workerNames.add(name));
+  // 今日スポットがある人も含める
+  allSpots.forEach(s => {
+    if (s.start && s.end && s.start <= today && today <= s.end) {
+      workerNames.add(s.name);
+    }
+  });
+
+  for (const name of workerNames) {
+    const records = groups.get(name) || [];
     records.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
-    const now = records.find(r => r.start && r.start <= today && r.end >= today);
+    let now = records.find(r => r.start && r.start <= today && r.end >= today) || null;
     const future = records.filter(r => r.start && r.start > today);
     let next = null, upcoming = null, extras = [];
-    if (now) {
+
+    // 今日のスポットがあれば「今」として優先（元の現場は extras に押し下げ）
+    const todaySpot = allSpots.find(s =>
+      s.name === name && s.start && s.end && s.start <= today && today <= s.end
+    );
+    if (todaySpot) {
+      // スポットを「今」にして、元の「今」があれば extras に
+      const originalNow = now;
+      now = {
+        rowIndex: todaySpot.rowIndex,
+        name: todaySpot.name,
+        genba: todaySpot.genba,
+        kantoku: todaySpot.kantoku,
+        start: todaySpot.start,
+        end: todaySpot.end,
+        _isSpot: true
+      };
+      if (originalNow) {
+        // 元の長期予定を「次」として残す（スポットが終わったら戻るので）
+        next = originalNow;
+        extras = future;
+      } else {
+        next = future[0] || null;
+        extras = future.slice(1);
+      }
+    } else if (now) {
       next = future[0] || null;
-      // 3件目以降（「次」を除いた残り）
       extras = future.slice(1);
     } else if (future.length > 0) {
-      upcoming = future[0]; // 「今」が無く、未来の予定だけある（メインに「開始前」として出す）
-      // upcoming を除いた残りは extras 扱い
+      upcoming = future[0];
       extras = future.slice(1);
     }
+
     if (!now && !upcoming) continue;
     result.push({ name, now, next, upcoming, extras });
   }
@@ -944,10 +980,14 @@ function render() {
       const kt = hasKantoku(g.now.kantoku)
         ? `<span class="kantoku-tag has">監督 ${esc(formatKantokus(g.now.kantoku))}</span>`
         : `<span class="kantoku-tag none">監督 なし</span>`;
-      slotsHtml += `<div class="slot-box">
+      const isSpot = g.now._isSpot;
+      const editHandler = isSpot ? `openSpotEdit(${g.now.rowIndex})` : `openEdit(${g.now.rowIndex})`;
+      const badgeText = isSpot ? '⚡ 今（スポット）' : '今';
+      const slotClass = isSpot ? 'slot-box now-spot' : 'slot-box';
+      slotsHtml += `<div class="${slotClass}">
         <div class="slot-header">
-          <span class="slot-badge now">今</span>
-          <button class="slot-edit" onclick="openEdit(${g.now.rowIndex})">編集</button>
+          <span class="slot-badge now">${badgeText}</span>
+          <button class="slot-edit" onclick="${editHandler}">編集</button>
         </div>
         <div class="slot-genba">${esc(g.now.genba)}</div>
         <div class="slot-meta">
