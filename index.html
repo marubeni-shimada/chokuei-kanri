@@ -1170,9 +1170,14 @@ async function saveEdit() {
 
 // ── 作業員カードからの「現場を追加」モーダル ──
 function updateAddGenbaKoki() {
+  const startEl = document.getElementById('add-genba-start');
+  const endEl = document.getElementById('add-genba-end');
+  if (startEl.value && !endEl.value) {
+    endEl.value = startEl.value;
+  }
   renderKokiPreview(
-    document.getElementById('add-genba-start').value,
-    document.getElementById('add-genba-end').value,
+    startEl.value,
+    endEl.value,
     document.getElementById('add-genba-koki-preview'),
     document.getElementById('add-genba-koki-days')
   );
@@ -1181,9 +1186,15 @@ function updateAddGenbaKoki() {
 // スポット機能
 // ─────────────────────────────────
 function updateSpotKoki() {
+  // 開始日が入って終了日が空なら、終了日に開始日と同じ日を入れる
+  const startEl = document.getElementById('spot-start');
+  const endEl = document.getElementById('spot-end');
+  if (startEl.value && !endEl.value) {
+    endEl.value = startEl.value;
+  }
   renderKokiPreview(
-    document.getElementById('spot-start').value,
-    document.getElementById('spot-end').value,
+    startEl.value,
+    endEl.value,
     document.getElementById('spot-koki-preview'),
     document.getElementById('spot-koki-days')
   );
@@ -1235,8 +1246,14 @@ function openSpotModal(opts) {
   document.getElementById('spot-modal-subtitle').textContent = baseLabel;
 
   // 日付プリセット
-  document.getElementById('spot-start').value = opts.initStart || opts.baseStart || '';
-  document.getElementById('spot-end').value = opts.initEnd || opts.initStart || opts.baseStart || '';
+  // 追加時：空欄（ユーザーが選ぶ）／編集時：既存スポットの日付
+  if (isEdit) {
+    document.getElementById('spot-start').value = opts.initStart || '';
+    document.getElementById('spot-end').value = opts.initEnd || '';
+  } else {
+    document.getElementById('spot-start').value = '';
+    document.getElementById('spot-end').value = '';
+  }
 
   // 現場プルダウン
   const gs = document.getElementById('spot-genba');
