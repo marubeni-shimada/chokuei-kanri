@@ -497,6 +497,7 @@ const COLORS = [
 ];
 
 let allData = [], allSpots = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
+let lastTappedCalDate = null; // カレンダーでタップしたセルの日付（スポット追加の初期値に使う）
 let masterAuthed = false;
 let masterPassword = '';
 
@@ -808,9 +809,9 @@ function renderCalendar() {
         const display = surnames || rec.genba.split(/\s/)[0].slice(0, 4);
         if (rec._isSpot) {
           // スポット：太字＋オレンジ系の枠
-          html += `<td class="cal-cell cal-spot" onclick="openSpotEdit(${rec.rowIndex})" title="⚡スポット: ${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
+          html += `<td class="cal-cell cal-spot" onclick="lastTappedCalDate='${ds}';openSpotEdit(${rec.rowIndex})" title="⚡スポット: ${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
         } else {
-          html += `<td class="cal-cell" style="background:${c.bg};color:${c.color};" onclick="openEdit(${rec.rowIndex})" title="${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
+          html += `<td class="cal-cell" style="background:${c.bg};color:${c.color};" onclick="lastTappedCalDate='${ds}';openEdit(${rec.rowIndex})" title="${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
         }
       } else {
         html += `<td class="${isWeekend ? 'weekend' : ''} cal-empty-cell" onclick="openAddGenbaFromCalendar('${esc(name).replace(/'/g, "\\'")}','${ds}')" title="クリックで現場を追加"></td>`;
@@ -1206,7 +1207,15 @@ function openSpotFromEdit() {
   const base = allData.find(r => r.rowIndex === idx);
   if (!base) return;
   closeModal();
-  openSpotModal({ baseRow: idx, workerName: base.name, baseGenba: base.genba, baseStart: base.start, baseEnd: base.end });
+  openSpotModal({
+    baseRow: idx,
+    workerName: base.name,
+    baseGenba: base.genba,
+    baseStart: base.start,
+    baseEnd: base.end,
+    initStart: lastTappedCalDate || '',
+    initEnd: lastTappedCalDate || ''
+  });
 }
 
 // カレンダーから既存スポットをタップした時（編集モード）
@@ -1246,14 +1255,9 @@ function openSpotModal(opts) {
   document.getElementById('spot-modal-subtitle').textContent = baseLabel;
 
   // 日付プリセット
-  // 追加時：空欄（ユーザーが選ぶ）／編集時：既存スポットの日付
-  if (isEdit) {
-    document.getElementById('spot-start').value = opts.initStart || '';
-    document.getElementById('spot-end').value = opts.initEnd || '';
-  } else {
-    document.getElementById('spot-start').value = '';
-    document.getElementById('spot-end').value = '';
-  }
+  // 追加時：opts.initStart（カレンダーでタップした日付）／編集時：既存スポットの日付
+  document.getElementById('spot-start').value = opts.initStart || '';
+  document.getElementById('spot-end').value = opts.initEnd || opts.initStart || '';
 
   // 現場プルダウン
   const gs = document.getElementById('spot-genba');
