@@ -100,6 +100,7 @@ body{font-family:-apple-system,sans-serif;background:#F0F0F0;color:#111;}
 .koki-preview.invalid{background:#FDECEC;}
 .koki-preview.invalid .koki-preview-label,.koki-preview.invalid .koki-preview-days{color:#C62828;}
 .del-from-modal-btn{width:100%;margin-top:10px;padding:10px;background:#fff;color:#E03B3B;border:1px solid #E03B3B;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+.spot-add-btn{width:100%;margin-top:10px;padding:10px;background:#FFF3E0;color:#E65100;border:1px solid #FF9800;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
 /* 登録フォーム */
 .page{display:none;}
 .page.active{display:block;}
@@ -161,6 +162,8 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 .cal-table tbody td.weekend{background:#F5F5F5;}
 .cal-cell{cursor:pointer;font-size:10px;padding:8px 2px;font-weight:500;}
 .cal-cell:hover{filter:brightness(0.96);}
+.cal-cell.cal-spot{background:#FFF3E0;color:#E65100;font-weight:700;border:2px solid #FF9800 !important;position:relative;}
+.cal-cell.cal-spot::before{content:'⚡';position:absolute;top:1px;left:2px;font-size:9px;}
 .cal-empty-cell{cursor:pointer;}
 .cal-empty-cell:hover{background:#F0F8FF !important;}
 .cal-empty{padding:60px 20px;text-align:center;color:#bbb;font-size:14px;}
@@ -386,6 +389,43 @@ input[type=date]{padding:11px 8px;font-size:14px;}
   </div>
 </div>
 
+<!-- ===== スポット追加・編集モーダル ===== -->
+<div class="modal-bg" id="spot-modal-bg">
+  <div class="modal">
+    <div style="font-size:12px;color:#888;margin-bottom:4px;" id="spot-modal-subtitle"></div>
+    <h2 style="margin-bottom:14px;" id="spot-modal-title">⚡ スポットを追加</h2>
+    <input type="hidden" id="spot-edit-row">
+    <input type="hidden" id="spot-base-row">
+    <input type="hidden" id="spot-worker-name">
+    <label>開始日</label>
+    <input type="date" id="spot-start" onchange="updateSpotKoki()">
+    <label>終了予定日</label>
+    <input type="date" id="spot-end" onchange="updateSpotKoki()">
+    <div class="koki-preview" id="spot-koki-preview" style="display:none;">
+      <span class="koki-preview-label">期間</span>
+      <span class="koki-preview-days" id="spot-koki-days">—</span>
+    </div>
+    <label>現場名</label>
+    <select id="spot-genba" onchange="onSpotGenbaChange()"><option value="">選択してください</option></select>
+    <input type="text" class="genba-input" id="spot-genba-free" placeholder="現場名を入力してください">
+    <div id="spot-kantoku-group">
+      <label>監督名</label>
+      <div class="kantoku-disp" id="spot-kantoku-disp">現場を選ぶと自動表示されます</div>
+      <input type="hidden" id="spot-kantoku">
+    </div>
+    <div id="spot-kantoku-free-group" style="display:none;">
+      <label>監督名</label>
+      <select id="spot-kantoku-free-select" onchange="onSpotKantokuFreeChange()"></select>
+      <input type="text" id="spot-kantoku-free-input" placeholder="監督名を入力" style="display:none;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;background:#fff;color:#111;margin-top:8px;">
+    </div>
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeSpotModal()">キャンセル</button>
+      <button class="save-btn" onclick="saveSpot()" id="spot-save-btn">追加する</button>
+    </div>
+    <button type="button" class="del-from-modal-btn" id="spot-delete-btn" onclick="deleteSpot()" style="display:none;">🗑 このスポットを削除</button>
+  </div>
+</div>
+
 <!-- ===== 編集モーダル ===== -->
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
@@ -425,6 +465,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
       <button class="cancel-btn" onclick="closeModal()">キャンセル</button>
       <button class="save-btn" onclick="saveEdit()">保存</button>
     </div>
+    <button type="button" class="spot-add-btn" onclick="openSpotFromEdit()">⚡ この期間内にスポットを追加</button>
     <button class="del-from-modal-btn" onclick="delFromEdit()">🗑 この現場を削除</button>
   </div>
 </div>
@@ -455,7 +496,7 @@ const COLORS = [
   {bg:'#E0F2F1',color:'#00695C'},{bg:'#FBEAF0',color:'#72243E'}
 ];
 
-let allData = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
+let allData = [], allSpots = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
 let masterAuthed = false;
 let masterPassword = '';
 
@@ -623,7 +664,16 @@ function extractSurnames(kantoku) {
 }
 
 // その作業員の rowIndex を返す（日付に該当するレコード、無ければ null）
+// スポットがあれば優先して返す
 function findRecordForDay(workerName, dateStr) {
+  // 先にスポットを探す
+  const spot = allSpots.find(s =>
+    s.name === workerName &&
+    s.start && s.end &&
+    s.start <= dateStr && dateStr <= s.end
+  );
+  if (spot) return { ...spot, _isSpot: true };
+  // 通常レコードを探す
   return allData.find(r =>
     r.name === workerName &&
     r.start && r.end &&
@@ -756,7 +806,12 @@ function renderCalendar() {
       if (rec) {
         const surnames = extractSurnames(rec.kantoku);
         const display = surnames || rec.genba.split(/\s/)[0].slice(0, 4);
-        html += `<td class="cal-cell" style="background:${c.bg};color:${c.color};" onclick="openEdit(${rec.rowIndex})" title="${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
+        if (rec._isSpot) {
+          // スポット：太字＋オレンジ系の枠
+          html += `<td class="cal-cell cal-spot" onclick="openSpotEdit(${rec.rowIndex})" title="⚡スポット: ${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
+        } else {
+          html += `<td class="cal-cell" style="background:${c.bg};color:${c.color};" onclick="openEdit(${rec.rowIndex})" title="${esc(rec.genba)}${rec.kantoku ? ' / 監督:' + esc(formatKantokus(rec.kantoku)) : ''}">${esc(display)}</td>`;
+        }
       } else {
         html += `<td class="${isWeekend ? 'weekend' : ''} cal-empty-cell" onclick="openAddGenbaFromCalendar('${esc(name).replace(/'/g, "\\'")}','${ds}')" title="クリックで現場を追加"></td>`;
       }
@@ -817,6 +872,7 @@ async function loadList() {
       kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
     };
     allData = result.records || [];
+    allSpots = result.spots || [];
     render();
     // カレンダー画面が表示中なら再描画
     if (document.getElementById('page-calendar').classList.contains('active')) {
@@ -1121,6 +1177,171 @@ function updateAddGenbaKoki() {
     document.getElementById('add-genba-koki-days')
   );
 }
+// ─────────────────────────────────
+// スポット機能
+// ─────────────────────────────────
+function updateSpotKoki() {
+  renderKokiPreview(
+    document.getElementById('spot-start').value,
+    document.getElementById('spot-end').value,
+    document.getElementById('spot-koki-preview'),
+    document.getElementById('spot-koki-days')
+  );
+}
+
+// 編集モーダルから「スポットを追加」を押した時
+function openSpotFromEdit() {
+  const idx = parseInt(document.getElementById('edit-row').value);
+  const base = allData.find(r => r.rowIndex === idx);
+  if (!base) return;
+  closeModal();
+  openSpotModal({ baseRow: idx, workerName: base.name, baseGenba: base.genba, baseStart: base.start, baseEnd: base.end });
+}
+
+// カレンダーから既存スポットをタップした時（編集モード）
+function openSpotEdit(spotRowIndex) {
+  const spot = allSpots.find(s => s.rowIndex === spotRowIndex);
+  if (!spot) return;
+  // 元レコードの情報も持ってくる
+  const base = allData.find(r => r.rowIndex === spot.baseRow);
+  openSpotModal({
+    spotRowIndex: spotRowIndex,
+    baseRow: spot.baseRow,
+    workerName: spot.name,
+    baseGenba: base ? base.genba : '',
+    baseStart: base ? base.start : '',
+    baseEnd: base ? base.end : '',
+    initStart: spot.start,
+    initEnd: spot.end,
+    initGenba: spot.genba,
+    initKantoku: spot.kantoku
+  });
+}
+
+function openSpotModal(opts) {
+  const isEdit = !!opts.spotRowIndex;
+  document.getElementById('spot-edit-row').value = opts.spotRowIndex || '';
+  document.getElementById('spot-base-row').value = opts.baseRow || '';
+  document.getElementById('spot-worker-name').value = opts.workerName || '';
+
+  document.getElementById('spot-modal-title').textContent = isEdit ? '⚡ スポットを編集' : '⚡ スポットを追加';
+  document.getElementById('spot-save-btn').textContent = isEdit ? '保存' : '追加する';
+  document.getElementById('spot-delete-btn').style.display = isEdit ? 'block' : 'none';
+
+  // サブタイトル
+  const baseLabel = opts.baseGenba
+    ? `${opts.workerName} さん・${opts.baseGenba}（${fmt(opts.baseStart)}〜${fmt(opts.baseEnd)}）に挾む`
+    : `${opts.workerName} さん（元レコード不明）`;
+  document.getElementById('spot-modal-subtitle').textContent = baseLabel;
+
+  // 日付プリセット
+  document.getElementById('spot-start').value = opts.initStart || opts.baseStart || '';
+  document.getElementById('spot-end').value = opts.initEnd || opts.initStart || opts.baseStart || '';
+
+  // 現場プルダウン
+  const gs = document.getElementById('spot-genba');
+  gs.innerHTML = '<option value="">選択してください</option>';
+  masters.genbas.forEach(g => {
+    const o = document.createElement('option');
+    o.value = g.name; o.textContent = g.name;
+    if (g.name === opts.initGenba) o.selected = true;
+    gs.appendChild(o);
+  });
+  // initGenba がマスタにない場合
+  if (opts.initGenba && !masters.genbas.find(g => g.name === opts.initGenba)) {
+    const cur = document.createElement('option');
+    cur.value = opts.initGenba; cur.textContent = opts.initGenba; cur.selected = true;
+    gs.appendChild(cur);
+  }
+  const free = document.createElement('option');
+  free.value = '__free__'; free.textContent = '✏️ 直接入力する';
+  gs.appendChild(free);
+
+  document.getElementById('spot-genba-free').value = '';
+  document.getElementById('spot-genba-free').style.display = 'none';
+  document.getElementById('spot-kantoku-group').style.display = 'block';
+  document.getElementById('spot-kantoku-free-group').style.display = 'none';
+  document.getElementById('spot-kantoku-free-input').style.display = 'none';
+  document.getElementById('spot-kantoku-free-input').value = '';
+  document.getElementById('spot-kantoku').value = opts.initKantoku || '';
+
+  onSpotGenbaChange();
+  updateSpotKoki();
+  document.getElementById('spot-modal-bg').style.display = 'block';
+}
+
+function closeSpotModal() {
+  document.getElementById('spot-modal-bg').style.display = 'none';
+}
+
+function onSpotGenbaChange() {
+  const val = document.getElementById('spot-genba').value;
+  const freeInput = document.getElementById('spot-genba-free');
+  const kantokuGroup = document.getElementById('spot-kantoku-group');
+  const kantokuFreeGroup = document.getElementById('spot-kantoku-free-group');
+  if (val === '__free__') {
+    freeInput.style.display = 'block';
+    kantokuGroup.style.display = 'none';
+    kantokuFreeGroup.style.display = 'block';
+    const selectEl = document.getElementById('spot-kantoku-free-select');
+    buildKantokuFreeSelect(selectEl, '');
+    handleKantokuFreeChange('spot-kantoku-free-select', 'spot-kantoku-free-input');
+  } else {
+    freeInput.style.display = 'none';
+    kantokuGroup.style.display = 'block';
+    kantokuFreeGroup.style.display = 'none';
+    const found = masters.genbas.find(g => g.name === val);
+    const k = found ? found.kantoku : '';
+    document.getElementById('spot-kantoku').value = k;
+    document.getElementById('spot-kantoku-disp').textContent = formatKantokus(k) || '（未設定）';
+  }
+}
+function onSpotKantokuFreeChange() {
+  handleKantokuFreeChange('spot-kantoku-free-select', 'spot-kantoku-free-input');
+}
+
+async function saveSpot() {
+  const spotRowIndex = document.getElementById('spot-edit-row').value;
+  const baseRow = document.getElementById('spot-base-row').value;
+  const name = document.getElementById('spot-worker-name').value;
+  const selGenba = document.getElementById('spot-genba').value;
+  const genba = selGenba === '__free__' ? document.getElementById('spot-genba-free').value.trim() : selGenba;
+  const kantoku = selGenba === '__free__'
+    ? readKantokuFreeValue('spot-kantoku-free-select', 'spot-kantoku-free-input')
+    : document.getElementById('spot-kantoku').value;
+  const start = document.getElementById('spot-start').value;
+  const end = document.getElementById('spot-end').value;
+  if (!genba || !start || !end) {
+    const m = [];
+    if (!genba) m.push('現場名');
+    if (!start) m.push('開始日');
+    if (!end) m.push('終了予定日');
+    alert(m.join('・') + 'を入力してください');
+    return;
+  }
+  closeSpotModal();
+  showOverlay(spotRowIndex ? '保存中...' : '追加中...');
+  if (spotRowIndex) {
+    await apiPost({ action: 'updateSpot', rowIndex: parseInt(spotRowIndex), name, genba, kantoku, start, end });
+  } else {
+    await apiPost({ action: 'addSpot', name, genba, kantoku, start, end, baseRow: parseInt(baseRow) || '' });
+  }
+  await loadList();
+}
+
+async function deleteSpot() {
+  const spotRowIndex = document.getElementById('spot-edit-row').value;
+  if (!spotRowIndex) return;
+  if (!confirm('このスポットを削除しますか?\n元の長期予定が自動的に元通り表示されます。')) return;
+  closeSpotModal();
+  showOverlay('削除中...');
+  await apiPost({ action: 'deleteSpot', rowIndex: parseInt(spotRowIndex) });
+  await loadList();
+}
+
+// ─────────────────────────────────
+// カレンダーの空白セルから新規追加
+// ─────────────────────────────────
 // カレンダーの空白セルから「次の現場を追加」モーダルを開く（開始日プリフィル）
 function openAddGenbaFromCalendar(workerName, dateStr) {
   openAddGenbaModal(workerName);
