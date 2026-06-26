@@ -900,50 +900,52 @@ function buildWorkerGroups() {
   // 全作業員（スポットしかない人も拾うため、作業員リストからループ）
   const workerNames = new Set();
   groups.forEach((_, name) => workerNames.add(name));
-  // 今日スポットがある人も含める
+  // 今日以降のスポットがある人も含める
   allSpots.forEach(s => {
-    if (s.start && s.end && s.start <= today && today <= s.end) {
-      workerNames.add(s.name);
-    }
+    if (s.end && s.end >= today) workerNames.add(s.name);
   });
 
   for (const name of workerNames) {
     const records = groups.get(name) || [];
     records.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
     let now = records.find(r => r.start && r.start <= today && r.end >= today) || null;
-    const future = records.filter(r => r.start && r.start > today);
-    let next = null, upcoming = null, extras = [];
 
-    // 今日のスポットがあれば「今」として優先（元の現場は extras に押し下げ）
-    const todaySpot = allSpots.find(s =>
-      s.name === name && s.start && s.end && s.start <= today && today <= s.end
-    );
-    if (todaySpot) {
-      // スポットを「今」にして、元の「今」があれば extras に
-      const originalNow = now;
-      now = {
-        rowIndex: todaySpot.rowIndex,
-        name: todaySpot.name,
-        genba: todaySpot.genba,
-        kantoku: todaySpot.kantoku,
-        start: todaySpot.start,
-        end: todaySpot.end,
+    // この作業員のスポット（今日以降）
+    const personSpots = allSpots
+      .filter(s => s.name === name && s.end && s.end >= today)
+      .map(s => ({
+        rowIndex: s.rowIndex,
+        name: s.name,
+        genba: s.genba,
+        kantoku: s.kantoku,
+        start: s.start,
+        end: s.end,
         _isSpot: true
-      };
-      if (originalNow) {
-        // 元の長期予定を「次」として残す（スポットが終わったら戻るので）
-        next = originalNow;
-        extras = future;
-      } else {
-        next = future[0] || null;
-        extras = future.slice(1);
-      }
-    } else if (now) {
-      next = future[0] || null;
-      extras = future.slice(1);
-    } else if (future.length > 0) {
-      upcoming = future[0];
-      extras = future.slice(1);
+      }));
+
+    // 今日のスポットがあれば「今」として優先
+    const todaySpot = personSpots.find(s => s.start <= today && today <= s.end);
+    let originalNowAsBacklog = null;
+    if (todaySpot) {
+      if (now) originalNowAsBacklog = now;
+      now = todaySpot;
+    }
+
+    // 「次」以降の候補：長期予定の未来分 + 未来のスポット + (元の今が押し下げられたなら) それも
+    const future = records.filter(r => r.start && r.start > today);
+    const futureSpots = personSpots.filter(s => s !== todaySpot && s.start > today);
+    const allFuture = [...future, ...futureSpots];
+    if (originalNowAsBacklog) allFuture.push(originalNowAsBacklog);
+    // 開始日順に並び替え（押し下げられた元の今は start <= today なので一番先頭になる）
+    allFuture.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+
+    let next = null, upcoming = null, extras = [];
+    if (now) {
+      next = allFuture[0] || null;
+      extras = allFuture.slice(1);
+    } else if (allFuture.length > 0) {
+      upcoming = allFuture[0];
+      extras = allFuture.slice(1);
     }
 
     if (!now && !upcoming) continue;
@@ -996,10 +998,13 @@ function render() {
         </div>
       </div>`;
       if (g.next) {
+        const nextIsSpot = g.next._isSpot;
+        const nextEditHandler = nextIsSpot ? `openSpotEdit(${g.next.rowIndex})` : `openEdit(${g.next.rowIndex})`;
+        const nextBadge = nextIsSpot ? '⚡ 次' : '次';
         slotsHtml += `<div class="slot-box next">
           <div class="slot-header">
-            <span class="slot-badge next">次</span>
-            <button class="slot-edit" onclick="openEdit(${g.next.rowIndex})">編集</button>
+            <span class="slot-badge next">${nextBadge}</span>
+            <button class="slot-edit" onclick="${nextEditHandler}">編集</button>
           </div>
           <div class="slot-genba">${esc(g.next.genba)}</div>
           <div class="slot-meta">
@@ -1011,10 +1016,13 @@ function render() {
       const kt = hasKantoku(g.upcoming.kantoku)
         ? `<span class="kantoku-tag has">監督 ${esc(formatKantokus(g.upcoming.kantoku))}</span>`
         : `<span class="kantoku-tag none">監督 なし</span>`;
+      const upIsSpot = g.upcoming._isSpot;
+      const upEditHandler = upIsSpot ? `openSpotEdit(${g.upcoming.rowIndex})` : `openEdit(${g.upcoming.rowIndex})`;
+      const upBadge = upIsSpot ? '⚡ 開始前' : '開始前';
       slotsHtml += `<div class="slot-box upcoming">
         <div class="slot-header">
-          <span class="slot-badge upcoming">開始前</span>
-          <button class="slot-edit" onclick="openEdit(${g.upcoming.rowIndex})">編集</button>
+          <span class="slot-badge upcoming">${upBadge}</span>
+          <button class="slot-edit" onclick="${upEditHandler}">編集</button>
         </div>
         <div class="slot-genba">${esc(g.upcoming.genba)}</div>
         <div class="slot-meta">
@@ -1027,18 +1035,22 @@ function render() {
     // 3件目以降：折りたたみ
     if (g.extras && g.extras.length > 0) {
       const extrasKey = `extras-${esc(g.name).replace(/[^a-zA-Z0-9]/g, '_')}-${i}`;
-      const extrasHtml = g.extras.map((r, idx) => `
+      const extrasHtml = g.extras.map((r, idx) => {
+        const extraIsSpot = r._isSpot;
+        const extraEditHandler = extraIsSpot ? `openSpotEdit(${r.rowIndex})` : `openEdit(${r.rowIndex})`;
+        const extraBadge = extraIsSpot ? `⚡ ${idx + 3}件目` : `${idx + 3}件目`;
+        return `
         <div class="slot-box next">
           <div class="slot-header">
-            <span class="slot-badge next">${idx + 3}件目</span>
-            <button class="slot-edit" onclick="openEdit(${r.rowIndex})">編集</button>
+            <span class="slot-badge next">${extraBadge}</span>
+            <button class="slot-edit" onclick="${extraEditHandler}">編集</button>
           </div>
           <div class="slot-genba">${esc(r.genba)}</div>
           <div class="slot-meta">
             <span class="slot-koki">${fmt(r.start)}〜${fmt(r.end)}</span>
           </div>
         </div>
-      `).join('');
+      `;}).join('');
       slotsHtml += `
         <button class="extras-toggle" id="btn-${extrasKey}" onclick="toggleExtras('${extrasKey}')">他に${g.extras.length}件 ▾</button>
         <div class="extras-wrap" id="${extrasKey}" style="display:none;">${extrasHtml}</div>
