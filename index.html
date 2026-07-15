@@ -211,7 +211,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 <!-- ===== 登録ページ ===== -->
 <div class="page" id="page-register">
   <div class="reg-header">
-    <span class="back" onclick="showList()">← 一覧</span>
+    <span class="back" onclick="returnFromRegister()">← 戻る</span>
     <h1>現場登録</h1>
   </div>
   <div class="form" id="reg-form">
@@ -253,7 +253,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
     <div class="s-title">登録しました</div>
     <div class="s-sub" id="reg-success-msg"></div>
     <button class="back-btn" onclick="resetRegister()">続けて登録する</button>
-    <button class="back-btn" style="margin-top:8px;" onclick="showList()">一覧に戻る</button>
+    <button class="back-btn" style="margin-top:8px;" onclick="returnFromRegister()">戻る</button>
   </div>
 </div>
 
@@ -510,6 +510,7 @@ const COLORS = [
 
 let allData = [], allSpots = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
 let lastTappedCalDate = null; // カレンダーでタップしたセルの日付（スポット追加の初期値に使う）
+let lastPageBeforeRegister = 'list'; // 登録画面に入る前の画面（'list' or 'calendar'）
 let masterAuthed = false;
 let masterPassword = '';
 
@@ -612,11 +613,26 @@ function showList() {
   loadList();
 }
 function showRegister() {
+  // 登録画面に入る前の画面を覚える
+  if (document.getElementById('page-calendar').classList.contains('active')) {
+    lastPageBeforeRegister = 'calendar';
+  } else {
+    lastPageBeforeRegister = 'list';
+  }
   hideAllPages();
   document.getElementById('page-register').classList.add('active');
   document.getElementById('reg-form').style.display = 'block';
   document.getElementById('reg-success').style.display = 'none';
   fillMasterSelects();
+}
+
+// 登録画面から前の画面に戻る
+function returnFromRegister() {
+  if (lastPageBeforeRegister === 'calendar') {
+    showCalendar();
+  } else {
+    showList();
+  }
 }
 function showMaster() {
   if (!masterAuthed) {
