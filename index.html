@@ -405,7 +405,10 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 <div class="modal-bg" id="spot-modal-bg">
   <div class="modal">
     <div style="font-size:12px;color:#888;margin-bottom:4px;" id="spot-modal-subtitle"></div>
-    <h2 style="margin-bottom:14px;" id="spot-modal-title">⚡ スポットを追加</h2>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;">
+      <h2 style="margin:0;" id="spot-modal-title">⚡ スポットを追加</h2>
+      <span id="spot-registrant-label" style="font-size:11px;color:#666;"></span>
+    </div>
     <input type="hidden" id="spot-edit-row">
     <input type="hidden" id="spot-base-row">
     <input type="hidden" id="spot-worker-name">
@@ -444,7 +447,10 @@ input[type=date]{padding:11px 8px;font-size:14px;}
     <div id="edit-slot-badge-wrap" style="margin-bottom:6px;display:none;">
       <span class="slot-badge" id="edit-slot-badge">今</span>
     </div>
-    <h2>現場を編集</h2>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <h2 style="margin:0;">現場を編集</h2>
+      <span id="edit-registrant-label" style="font-size:11px;color:#666;"></span>
+    </div>
     <input type="hidden" id="edit-row">
     <label>作業員名</label>
     <select id="edit-worker"></select>
@@ -1176,6 +1182,9 @@ function openEdit(idx) {
   if (!d) return;
   document.getElementById('edit-row').value = idx;
 
+  // 登録者を表示
+  document.getElementById('edit-registrant-label').textContent = d.registrant ? '登録者: ' + d.registrant : '';
+
   // 「今」「次」バッジを設定
   const today = todayStr();
   const badgeWrap = document.getElementById('edit-slot-badge-wrap');
@@ -1238,7 +1247,7 @@ async function saveEdit() {
   if (!start || !end) { alert('日付を入力してください'); return; }
   closeModal();
   showOverlay('保存中...');
-  await apiPost({ action: 'update', rowIndex: idx, name, genba, kantoku, start, end });
+  await apiPost({ action: 'update', rowIndex: idx, name, genba, kantoku, start, end, registrant: lineUserName || '' });
   const d = allData.find(r => r.rowIndex === idx);
   if (d) { d.name = name; d.genba = genba; d.kantoku = kantoku; d.start = start; d.end = end; }
   hideOverlay();
@@ -1313,7 +1322,8 @@ function openSpotEdit(spotRowIndex) {
     initStart: spot.start,
     initEnd: spot.end,
     initGenba: spot.genba,
-    initKantoku: spot.kantoku
+    initKantoku: spot.kantoku,
+    registrant: spot.registrant || ''
   });
 }
 
@@ -1326,6 +1336,10 @@ function openSpotModal(opts) {
   document.getElementById('spot-modal-title').textContent = isEdit ? '⚡ スポットを編集' : '⚡ スポットを追加';
   document.getElementById('spot-save-btn').textContent = isEdit ? '保存' : '追加する';
   document.getElementById('spot-delete-btn').style.display = isEdit ? 'block' : 'none';
+
+  // 登録者表示
+  document.getElementById('spot-registrant-label').textContent =
+    (isEdit && opts.registrant) ? '登録者: ' + opts.registrant : '';
 
   // サブタイトル
   const baseLabel = opts.baseGenba
@@ -1422,9 +1436,9 @@ async function saveSpot() {
   closeSpotModal();
   showOverlay(spotRowIndex ? '保存中...' : '追加中...');
   if (spotRowIndex) {
-    await apiPost({ action: 'updateSpot', rowIndex: parseInt(spotRowIndex), name, genba, kantoku, start, end });
+    await apiPost({ action: 'updateSpot', rowIndex: parseInt(spotRowIndex), name, genba, kantoku, start, end, registrant: lineUserName || '' });
   } else {
-    await apiPost({ action: 'addSpot', name, genba, kantoku, start, end, baseRow: parseInt(baseRow) || '' });
+    await apiPost({ action: 'addSpot', name, genba, kantoku, start, end, baseRow: parseInt(baseRow) || '', registrant: lineUserName || '' });
   }
   await loadList();
 }
@@ -1524,7 +1538,7 @@ async function saveAddGenba() {
   }
   closeAddGenbaModal();
   showOverlay('追加中...');
-  await apiPost({ action: 'add', name, genba, kantoku, start, end });
+  await apiPost({ action: 'add', name, genba, kantoku, start, end, registrant: lineUserName || '' });
   hideOverlay();
   await loadList();
 }
@@ -1581,7 +1595,7 @@ async function submitRegister() {
   }
   document.getElementById('reg-btn-submit').disabled = true;
   showOverlay('登録中...');
-  await apiPost({ action: 'add', name, genba, kantoku, start, end });
+  await apiPost({ action: 'add', name, genba, kantoku, start, end, registrant: lineUserName || '' });
   hideOverlay();
   document.getElementById('reg-success-msg').innerHTML =
     name + ' → ' + genba + (hasKantoku(kantoku) ? ' (監督: ' + formatKantokus(kantoku) + ')' : '') + '<br>' + fmt(start) + '〜' + fmt(end);
