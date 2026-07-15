@@ -1209,8 +1209,8 @@ function openEdit(idx) {
     cur.selected = true;
     gs.appendChild(cur);
   }
-  masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; if (g.name === d.genba) o.selected = true; gs.appendChild(o); });
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
+  masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; if (g.name === d.genba) o.selected = true; gs.appendChild(o); });
   document.getElementById('edit-genba-free').style.display = 'none';
   document.getElementById('edit-kantoku-group').style.display = 'block';
   document.getElementById('edit-kantoku-free-group').style.display = 'none';
@@ -1341,21 +1341,21 @@ function openSpotModal(opts) {
   // 現場プルダウン
   const gs = document.getElementById('spot-genba');
   gs.innerHTML = '<option value="">選択してください</option>';
+  const spotFree = document.createElement('option');
+  spotFree.value = '__free__'; spotFree.textContent = '✏️ 直接入力する';
+  gs.appendChild(spotFree);
+  // initGenba がマスタにない場合、現在値を追加
+  if (opts.initGenba && !masters.genbas.find(g => g.name === opts.initGenba)) {
+    const cur = document.createElement('option');
+    cur.value = opts.initGenba; cur.textContent = opts.initGenba; cur.selected = true;
+    gs.appendChild(cur);
+  }
   masters.genbas.forEach(g => {
     const o = document.createElement('option');
     o.value = g.name; o.textContent = g.name;
     if (g.name === opts.initGenba) o.selected = true;
     gs.appendChild(o);
   });
-  // initGenba がマスタにない場合
-  if (opts.initGenba && !masters.genbas.find(g => g.name === opts.initGenba)) {
-    const cur = document.createElement('option');
-    cur.value = opts.initGenba; cur.textContent = opts.initGenba; cur.selected = true;
-    gs.appendChild(cur);
-  }
-  const free = document.createElement('option');
-  free.value = '__free__'; free.textContent = '✏️ 直接入力する';
-  gs.appendChild(free);
 
   document.getElementById('spot-genba-free').value = '';
   document.getElementById('spot-genba-free').style.display = 'none';
@@ -1456,14 +1456,14 @@ function openAddGenbaModal(workerName) {
   // 現場プルダウンを組み立て
   const gs = document.getElementById('add-genba-input-select');
   gs.innerHTML = '<option value="">選択してください</option>';
+  const free = document.createElement('option');
+  free.value = '__free__'; free.textContent = '✏️ 直接入力する';
+  gs.appendChild(free);
   masters.genbas.forEach(g => {
     const o = document.createElement('option');
     o.value = g.name; o.textContent = g.name;
     gs.appendChild(o);
   });
-  const free = document.createElement('option');
-  free.value = '__free__'; free.textContent = '✏️ 直接入力する';
-  gs.appendChild(free);
   // フォームをリセット
   document.getElementById('add-genba-input-free').value = '';
   document.getElementById('add-genba-input-free').style.display = 'none';
@@ -1536,8 +1536,8 @@ function fillMasterSelects() {
   ws.innerHTML = '<option value="">選択してください</option>';
   gs.innerHTML = '<option value="">選択してください</option>';
   masters.workers.forEach(w => { const o = document.createElement('option'); o.textContent = w.name; ws.appendChild(o); });
-  masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; gs.appendChild(o); });
   const free = document.createElement('option'); free.value = '__free__'; free.textContent = '✏️ 直接入力する'; gs.appendChild(free);
+  masters.genbas.forEach(g => { const o = document.createElement('option'); o.value = g.name; o.textContent = g.name; gs.appendChild(o); });
 }
 function onRegGenbaChange() {
   const val = document.getElementById('sel-genba').value;
@@ -1780,14 +1780,14 @@ function buildKantokuFreeSelect(selectEl, currentValue) {
   const optNone = document.createElement('option');
   optNone.value = ''; optNone.textContent = '─── （なし）';
   selectEl.appendChild(optNone);
+  const optNew = document.createElement('option');
+  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
+  selectEl.appendChild(optNew);
   getUniqueKantokuList().forEach(k => {
     const o = document.createElement('option');
     o.value = k; o.textContent = k;
     selectEl.appendChild(o);
   });
-  const optNew = document.createElement('option');
-  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
-  selectEl.appendChild(optNew);
   // 値を復元
   if (currentValue) {
     const found = Array.from(selectEl.options).some(o => o.value === currentValue);
@@ -1833,14 +1833,14 @@ function buildGenbaKantokuRow(value) {
   const optNone = document.createElement('option');
   optNone.value = ''; optNone.textContent = '（なし）';
   sel.appendChild(optNone);
+  const optNew = document.createElement('option');
+  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
+  sel.appendChild(optNew);
   getUniqueKantokuList().forEach(k => {
     const o = document.createElement('option');
     o.value = k; o.textContent = k;
     sel.appendChild(o);
   });
-  const optNew = document.createElement('option');
-  optNew.value = '__new__'; optNew.textContent = '＋ 新しい監督を入力';
-  sel.appendChild(optNew);
 
   const free = document.createElement('input');
   free.type = 'text';
