@@ -187,7 +187,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 </div>
 
 <!-- ===== 一覧ページ ===== -->
-<div class="page active" id="page-list">
+<div class="page" id="page-list">
   <div class="header">
     <div class="header-left">
       <div class="header-title-block">
@@ -258,11 +258,22 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 </div>
 
 <!-- ===== カレンダーページ ===== -->
-<div class="page" id="page-calendar">
-  <div class="cal-header">
-    <span class="back" onclick="showList()">← 一覧</span>
-    <h1>カレンダー</h1>
-    <button class="filter-btn" onclick="openFilterModal()">表示する人 ▾</button>
+<div class="page active" id="page-calendar">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-title-block">
+        <h1>カレンダー</h1>
+        <div class="header-sub" id="cal-header-sub"></div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
+      <button class="cal-btn" onclick="showList()" title="一覧">📋</button>
+      <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+    </div>
+  </div>
+  <div class="cal-header-sub" style="background:#fff;padding:8px 12px;display:flex;justify-content:flex-end;border-bottom:1px solid #EEE;">
+    <button class="filter-btn" onclick="openFilterModal()" style="font-size:12px;color:#555;background:#F5F5F5;border:1px solid #DDD;border-radius:8px;padding:6px 12px;cursor:pointer;">表示する人 ▾</button>
   </div>
   <div class="cal-nav">
     <button class="cal-nav-btn" onclick="calShiftWeek(-1)">← 先週</button>
@@ -2002,7 +2013,10 @@ async function initLiffAndLoad() {
     console.warn('LIFF init failed (continuing as guest):', e);
     updateLiffStatus('LIFFエラー: ' + (e.message || e));
   }
-  loadList();
+  // カレンダーをメイン画面として初期表示
+  if (!calWeekStart) calWeekStart = getMonday(new Date());
+  await loadList();
+  renderCalendar();
 }
 
 initLiffAndLoad();
