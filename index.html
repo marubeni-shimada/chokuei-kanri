@@ -2019,22 +2019,18 @@ async function initLiffAndLoad() {
       updateLiffStatus('LIFF初期化中...');
       await liff.init({ liffId: LIFF_ID });
       console.log('LIFF init OK. isInClient:', liff.isInClient(), 'isLoggedIn:', liff.isLoggedIn());
-      if (liff.isLoggedIn()) {
-        const profile = await liff.getProfile();
-        lineUserId = profile.userId;
-        lineUserName = profile.displayName;
-        console.log('LIFF logged in:', lineUserName, lineUserId);
-        updateLiffStatus('👤 ' + lineUserName);
-        // ユーザー設定を読み込む（失敗してもアプリは続行）
-        await loadUserSettings();
-      } else {
-        if (liff.isInClient()) {
-          liff.login();
-          return; // login() でリダイレクトされる
-        }
-        console.log('LIFF未ログイン（外部ブラウザ）');
-        updateLiffStatus('LIFF未ログイン');
+      if (!liff.isLoggedIn()) {
+        // 未ログインなら必ずログイン画面へ（PC/スマホ共通、生コン方式）
+        liff.login();
+        return;
       }
+      const profile = await liff.getProfile();
+      lineUserId = profile.userId;
+      lineUserName = profile.displayName;
+      console.log('LIFF logged in:', lineUserName, lineUserId);
+      updateLiffStatus('👤 ' + lineUserName);
+      // ユーザー設定を読み込む（失敗してもアプリは続行）
+      await loadUserSettings();
     } else {
       console.log('LIFF SDK 未読み込み');
       updateLiffStatus('LIFF SDK 未読み込み');
