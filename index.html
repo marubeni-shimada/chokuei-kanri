@@ -176,6 +176,26 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 .filter-modal-item label{font-size:14px;cursor:pointer;flex:1;color:#111;font-weight:500;margin:0;}
 .filter-modal-actions{display:flex;gap:8px;margin-bottom:10px;}
 .filter-modal-actions button{flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid #DDD;background:#fff;color:#555;cursor:pointer;}
+
+/* ===== 下ナビ＋レスポンシブ（2026-10-15 追加・外側のみ） ===== */
+.pc-tools{display:none;align-items:center;gap:8px;}
+.bottomnav{position:fixed;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid #E6E6E6;display:none;align-items:center;justify-content:space-between;padding:0 46px;z-index:90;box-shadow:0 -3px 16px rgba(0,0,0,0.06);}
+.bottomnav.show{display:flex;}
+.bottomnav .bn-side{display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:none;cursor:pointer;color:#888;font-size:10.5px;font-weight:700;width:60px;}
+.bottomnav .bn-side svg{width:25px;height:25px;}
+.bottomnav .bn-fab{display:flex;flex-direction:column;align-items:center;}
+.bottomnav .bn-fab button{width:58px;height:58px;border-radius:50%;background:#06C755;border:none;color:#fff;font-size:30px;font-weight:300;line-height:1;margin-top:-24px;box-shadow:0 7px 18px rgba(6,199,85,0.45);cursor:pointer;}
+.bottomnav .bn-fab .bn-lbl{font-size:10.5px;font-weight:800;color:#06A047;margin-top:2px;}
+body.has-bottomnav #page-calendar .cal-table-wrap,body.has-bottomnav #page-list .list{padding-bottom:84px;}
+@media(min-width:900px){
+  .bottomnav{display:none !important;}
+  body.has-bottomnav #page-calendar .cal-table-wrap,body.has-bottomnav #page-list .list{padding-bottom:16px;}
+  .pc-tools{display:flex;}
+  .cal-table{min-width:0;}
+  .cal-table-wrap{overflow-x:visible;}
+  .search-wrap,.count,.list,.cal-nav,.cal-table-wrap,.master-list,.form,.cal-header-sub{max-width:1100px;margin-left:auto;margin-right:auto;}
+  .reg-header,.master-header{max-width:1100px;margin-left:auto;margin-right:auto;}
+}
 </style>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -196,9 +216,11 @@ input[type=date]{padding:11px 8px;font-size:14px;}
       </div>
     </div>
     <div class="header-actions">
-      <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
-      <button class="cal-btn" onclick="showCalendar()" title="カレンダー">📅</button>
-      <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+      <div class="pc-tools">
+        <button class="cal-btn" onclick="showCalendar()" title="カレンダー">📅</button>
+        <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+        <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
+      </div>
     </div>
   </div>
   <div class="search-wrap">
@@ -267,9 +289,10 @@ input[type=date]{padding:11px 8px;font-size:14px;}
       </div>
     </div>
     <div class="header-actions">
-      <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
-      <button class="cal-btn" onclick="showList()" title="一覧">📋</button>
-      <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+      <div class="pc-tools">
+        <button class="reg-btn" onclick="showRegister()">＋ 登録</button>
+        <button class="gear-btn" onclick="showMaster()" title="マスタ管理" aria-label="マスタ管理">⚙</button>
+      </div>
     </div>
   </div>
   <div class="cal-header-sub" style="background:#fff;padding:8px 12px;display:flex;justify-content:flex-end;border-bottom:1px solid #EEE;">
@@ -307,7 +330,7 @@ input[type=date]{padding:11px 8px;font-size:14px;}
 <!-- ===== マスタ管理ページ ===== -->
 <div class="page" id="page-master">
   <div class="master-header">
-    <span class="back" onclick="showList()">← 一覧</span>
+    <span class="back" onclick="showCalendar()">← カレンダー</span>
     <h1>マスタ管理</h1>
   </div>
   <div class="tabs">
@@ -501,6 +524,14 @@ input[type=date]{padding:11px 8px;font-size:14px;}
   </div>
 </div>
 
+<!-- ===== 下ナビ（スマホ）＝ ＋登録 と マスタ だけ ===== -->
+<div class="bottomnav" id="bottomnav">
+  <div class="bn-side" style="visibility:hidden"></div>
+  <div class="bn-fab"><button onclick="showRegister()" aria-label="登録">＋</button><div class="bn-lbl">登録</div></div>
+  <button class="bn-side" onclick="showMaster()" aria-label="マスタ管理">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L16.2 2h-4l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.5h4l.4-2.5a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>マスタ</button>
+</div>
+
 <script>
 // ======================================
 // ★ここにGASのURLを貼り付けてください★
@@ -516,9 +547,11 @@ const COLORS = [
 
 let allData = [], allSpots = [], masters = { workers: [], genbas: [], kantokus: [] }, delTarget = null;
 let lastTappedCalDate = null; // カレンダーでタップしたセルの日付（スポット追加の初期値に使う）
-let lastPageBeforeRegister = 'list'; // 登録画面に入る前の画面（'list' or 'calendar'）
+let lastPageBeforeRegister = 'calendar'; // 登録画面に入る前の画面
 let masterAuthed = false;
 let masterPassword = '';
+let dataLoaded = false;       // 一度でもサーバー取得が終わったか（タブ切替での再取得を避ける）
+const LIST_CACHE_KEY = 'chokuei_list_cache_v1';  // 前回データ（開いた瞬間に出す用）
 
 // ── ユーティリティ ──
 function showOverlay(msg) {
@@ -527,6 +560,11 @@ function showOverlay(msg) {
 }
 function hideOverlay() {
   document.getElementById('overlay').classList.remove('show');
+}
+// 下ナビの表示切替（カレンダー/一覧でだけ出す）
+function showBottomNav(on) {
+  document.getElementById('bottomnav').classList.toggle('show', on);
+  document.body.classList.toggle('has-bottomnav', on);
 }
 function initials(n) { return n.replace(/\s/g, '').slice(0, 2); }
 function fmt(d) { if (!d) return ''; const p = d.split('-'); return p[1] + '/' + p[2]; }
@@ -616,17 +654,20 @@ function hideAllPages() {
 function showList() {
   hideAllPages();
   document.getElementById('page-list').classList.add('active');
-  loadList();
+  showBottomNav(true);
+  if (dataLoaded) render();   // 既に読込済みなら再取得せず即描画
+  else loadList();
 }
 function showRegister() {
   // 登録画面に入る前の画面を覚える
-  if (document.getElementById('page-calendar').classList.contains('active')) {
-    lastPageBeforeRegister = 'calendar';
-  } else {
+  if (document.getElementById('page-list').classList.contains('active')) {
     lastPageBeforeRegister = 'list';
+  } else {
+    lastPageBeforeRegister = 'calendar';
   }
   hideAllPages();
   document.getElementById('page-register').classList.add('active');
+  showBottomNav(false);
   document.getElementById('reg-form').style.display = 'block';
   document.getElementById('reg-success').style.display = 'none';
   fillMasterSelects();
@@ -634,10 +675,10 @@ function showRegister() {
 
 // 登録画面から前の画面に戻る
 function returnFromRegister() {
-  if (lastPageBeforeRegister === 'calendar') {
-    showCalendar();
-  } else {
+  if (lastPageBeforeRegister === 'list') {
     showList();
+  } else {
+    showCalendar();
   }
 }
 function showMaster() {
@@ -647,6 +688,7 @@ function showMaster() {
   }
   hideAllPages();
   document.getElementById('page-master').classList.add('active');
+  showBottomNav(false);
   loadMasters();
 }
 
@@ -742,9 +784,10 @@ function fmtMD(d) {
 function showCalendar() {
   hideAllPages();
   document.getElementById('page-calendar').classList.add('active');
+  showBottomNav(true);
   if (!calWeekStart) calWeekStart = getMonday(new Date());
-  // データを最新化して描画
-  loadListThenRenderCalendar();
+  if (dataLoaded) renderCalendar();        // 既に読込済みなら再取得せず即描画
+  else loadListThenRenderCalendar();
 }
 
 async function loadListThenRenderCalendar() {
@@ -892,29 +935,36 @@ function applyFilter() {
   renderCalendar();
 }
 
+// 取得データを state に反映（サーバー結果・キャッシュ共通）
+function applyListData(result) {
+  const m = result.masters || {};
+  masters = {
+    workers: Array.isArray(m.workersFull) ? m.workersFull
+            : Array.isArray(m.workers) ? m.workers.map(w => typeof w === 'string' ? { name: w } : w)
+            : [],
+    genbas: Array.isArray(m.genbasFull) ? m.genbasFull
+           : Array.isArray(m.genbas) ? m.genbas.map(g => typeof g === 'string' ? { name: g, kantoku: '' } : g)
+           : [],
+    kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
+  };
+  allData = result.records || [];
+  allSpots = result.spots || [];
+}
+
 async function loadList() {
   showOverlay('読み込み中...');
   try {
     const result = await apiGet('list');
-    const m = result.masters || {};
-    masters = {
-      workers: Array.isArray(m.workersFull) ? m.workersFull
-              : Array.isArray(m.workers) ? m.workers.map(w => typeof w === 'string' ? { name: w } : w)
-              : [],
-      genbas: Array.isArray(m.genbasFull) ? m.genbasFull
-             : Array.isArray(m.genbas) ? m.genbas.map(g => typeof g === 'string' ? { name: g, kantoku: '' } : g)
-             : [],
-      kantokus: Array.isArray(m.kantokus) ? m.kantokus : []
-    };
-    allData = result.records || [];
-    allSpots = result.spots || [];
+    applyListData(result);
+    dataLoaded = true;
+    try { localStorage.setItem(LIST_CACHE_KEY, JSON.stringify(result)); } catch(e) {}  // 次回の即表示用
     render();
     // カレンダー画面が表示中なら再描画
     if (document.getElementById('page-calendar').classList.contains('active')) {
       renderCalendar();
     }
   } catch(e) {
-    document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
+    if (!dataLoaded) document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
   }
   hideOverlay();
 }
@@ -1601,6 +1651,8 @@ async function submitRegister() {
     name + ' → ' + genba + (hasKantoku(kantoku) ? ' (監督: ' + formatKantokus(kantoku) + ')' : '') + '<br>' + fmt(start) + '〜' + fmt(end);
   document.getElementById('reg-form').style.display = 'none';
   document.getElementById('reg-success').style.display = 'block';
+  // バックグラウンドで最新化（戻った時に反映済みにする）
+  loadList();
 }
 function resetRegister() {
   document.getElementById('sel-worker').selectedIndex = 0;
@@ -1657,6 +1709,7 @@ async function submitLogin() {
       closeLoginModal();
       hideAllPages();
       document.getElementById('page-master').classList.add('active');
+      showBottomNav(false);
       loadMasters();
     } else {
       document.getElementById('login-err').textContent = (result && result.error) || 'パスワードが違います';
@@ -2012,7 +2065,24 @@ function updateLiffStatus(msg) {
   if (sub) sub.textContent = msg;
 }
 
+// 前回データがあれば即描画（開いた瞬間に出す・体感速度UP）
+function hydrateFromCache() {
+  try {
+    const raw = localStorage.getItem(LIST_CACHE_KEY);
+    if (!raw) return;
+    const cached = JSON.parse(raw);
+    if (cached && cached.masters) {
+      applyListData(cached);
+      if (!calWeekStart) calWeekStart = getMonday(new Date());
+      renderCalendar();
+      render();
+    }
+  } catch(e) {}
+}
+
 async function initLiffAndLoad() {
+  showBottomNav(true);   // カレンダーがホーム＝下ナビ表示
+  hydrateFromCache();    // 前回データを即表示（あれば）
   // LIFFが使える環境ならログイン情報を取得、ダメなら普通に動かす
   try {
     if (typeof liff !== 'undefined') {
