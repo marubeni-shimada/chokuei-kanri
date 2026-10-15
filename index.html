@@ -196,12 +196,13 @@ body.has-bottomnav #page-calendar .cal-table-wrap,body.has-bottomnav #page-list 
   .search-wrap,.count,.list,.cal-nav,.cal-table-wrap,.master-list,.form,.cal-header-sub{max-width:1100px;margin-left:auto;margin-right:auto;}
   .reg-header,.master-header{max-width:1100px;margin-left:auto;margin-right:auto;}
 }
-/* ===== ハマったスクロール：カレンダーは上下固定・中身だけスクロール（2026-10-15） ===== */
-#page-calendar.active{position:fixed;inset:0;display:flex;flex-direction:column;background:#F0F0F0;z-index:1;}
-#page-calendar .header,#page-calendar .cal-header-sub,#page-calendar .cal-nav{flex:none;}
-#page-calendar > div[style*="text-align:center"]{flex:none;} /* 「今週に戻る」行 */
-#page-calendar .cal-table-wrap{flex:1 1 auto;min-height:0;overflow:auto;}
-@media(min-width:900px){ #page-calendar .cal-table-wrap{overflow:auto;} }
+/* ===== ハマったスクロール：スマホのみ上下固定・中身だけスクロール。PCは自然スクロール（2026-10-15） ===== */
+@media(max-width:899px){
+  #page-calendar.active{position:fixed;inset:0;display:flex;flex-direction:column;background:#F0F0F0;z-index:1;}
+  #page-calendar .header,#page-calendar .cal-header-sub,#page-calendar .cal-nav{flex:none;}
+  #page-calendar > div[style*="text-align:center"]{flex:none;} /* 「今週に戻る」行 */
+  #page-calendar .cal-table-wrap{flex:1 1 auto;min-height:0;overflow:auto;}
+}
 </style>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
@@ -957,8 +958,9 @@ function applyListData(result) {
   allSpots = result.spots || [];
 }
 
-async function loadList() {
-  showOverlay('読み込み中...');
+async function loadList(silent) {
+  // silent=true：既にキャッシュで画面表示済み → 全画面ローディングを出さず裏で更新
+  if (!silent) showOverlay('読み込み中...');
   try {
     const result = await apiGet('list');
     applyListData(result);
@@ -970,9 +972,9 @@ async function loadList() {
       renderCalendar();
     }
   } catch(e) {
-    if (!dataLoaded) document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
+    if (!silent && !dataLoaded) document.getElementById('list').innerHTML = '<div class="empty">読み込みに失敗しました</div>';
   }
-  hideOverlay();
+  if (!silent) hideOverlay();
 }
 
 // allData から作業員ごとに「今」「次」「3件目以降」を抽出してグループ化
@@ -2082,13 +2084,15 @@ function hydrateFromCache() {
       if (!calWeekStart) calWeekStart = getMonday(new Date());
       renderCalendar();
       render();
+      return true;
     }
   } catch(e) {}
+  return false;
 }
 
 async function initLiffAndLoad() {
   showBottomNav(true);   // カレンダーがホーム＝下ナビ表示
-  hydrateFromCache();    // 前回データを即表示（あれば）
+  const hadCache = hydrateFromCache();    // 前回データを即表示（あれば）
   // LIFFが使える環境ならログイン情報を取得、ダメなら普通に動かす
   try {
     if (typeof liff !== 'undefined') {
@@ -2117,7 +2121,7 @@ async function initLiffAndLoad() {
   }
   // カレンダーをメイン画面として初期表示
   if (!calWeekStart) calWeekStart = getMonday(new Date());
-  await loadList();
+  await loadList(hadCache);   // キャッシュ表示済みなら裏で静かに更新（全画面ローディングを出さない）
   renderCalendar();
 }
 
